@@ -9,7 +9,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
+  # The library, the command line tool and the terminal app.
+  rust:
     strategy:
       fail-fast: false
       matrix:
@@ -22,5 +23,35 @@ jobs:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  # The desktop app. macOS only for now.
+  desktop:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: apps/desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/desktop/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: apps/desktop/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: The TypeScript types match the Rust types
+        run: pnpm bindings && git diff --exit-code -- src/bindings
+      - run: pnpm typecheck
+      - run: pnpm test
+      # The Rust side embeds the built frontend.
+      - run: pnpm build
+      - run: cargo clippy --package tsugi-desktop --all-targets -- -D warnings
+      - run: cargo test --package tsugi-desktop
