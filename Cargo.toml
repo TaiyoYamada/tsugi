@@ -1,0 +1,17 @@
+[workspace]
+resolver = "3"
+members = ["crates/tsugi-core", "crates/tsugi", "crates/tsugi-tui"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.89"
+license = "Apache-2.0"
+repository = "https://github.com/TaiyoYamada/tsugi"
+homepage = "https://github.com/TaiyoYamada/tsugi"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = { level = "warn", priority = -1 }
