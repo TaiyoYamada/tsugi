@@ -1,11 +1,19 @@
 [workspace]
 resolver = "3"
-members = ["crates/tsugi-core", "crates/tsugi", "crates/tsugi-tui"]
+members = [
+    "crates/tsugi-core",
+    "crates/tsugi",
+    "crates/tsugi-tui",
+    "apps/desktop/src-tauri",
+]
+# The desktop app needs its frontend built before it compiles. Plain
+# `cargo build` and `cargo test` leave it out; `--workspace` includes it.
+default-members = ["crates/tsugi-core", "crates/tsugi", "crates/tsugi-tui"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
-rust-version = "1.89"
+rust-version = "1.90"
 license = "Apache-2.0"
 repository = "https://github.com/TaiyoYamada/tsugi"
 homepage = "https://github.com/TaiyoYamada/tsugi"
@@ -15,3 +23,8 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 all = { level = "warn", priority = -1 }
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true

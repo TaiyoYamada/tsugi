@@ -1,0 +1,4 @@
+node_modules
+dist
+# Schemas Tauri generates for editor completion of the capability files.
+src-tauri/gen/schemas
