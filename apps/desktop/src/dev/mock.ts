@@ -218,6 +218,8 @@ export function installMock() {
         return 0;
       case "plugin:event|unlisten":
         return null;
+      case "plugin:app|version":
+        return "0.1.0";
       case "plugin:dialog|open":
         return "/work/docs";
       case "open_repo":

@@ -20,8 +20,10 @@ import type { Workspace } from "@/bindings/Workspace";
 
 export const api = {
   launchPath: () => invoke<string | null>("launch_path"),
-  openRepo: (path: string) => invoke<string>("open_repo", { path }),
-  initRepo: (path: string) => invoke<string>("init_repo", { path }),
+  openRepo: (path: string, watch: boolean) =>
+    invoke<string>("open_repo", { path, watch }),
+  initRepo: (path: string, watch: boolean) =>
+    invoke<string>("init_repo", { path, watch }),
   closeRepo: (repo: string) => invoke<null>("close_repo", { repo }),
   summary: (repo: string) => invoke<RepoSummary>("summary", { repo }),
   overview: (repo: string) => invoke<Overview>("overview", { repo }),

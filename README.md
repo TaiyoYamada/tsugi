@@ -124,8 +124,11 @@ something that happens in a repository that is not on screen is noticed.
 The app runs the watcher for every repository on the list.
 `tsugi-desktop <dir>` adds a repository directly.
 
-The app is in English and Japanese, and light or dark. Both follow the
-system unless they are set in the settings (the gear button, or ⌘,).
+The app is in English and Japanese, and light or dark; both follow the
+system unless they are set in the settings (the gear button, or ⌘,). The
+settings also offer twelve color themes, each of whose colors can be
+changed, the size of the text, the font and layout of diffs, and whether
+open repositories are watched.
 
 ## What tsugi writes, and how to remove it
 

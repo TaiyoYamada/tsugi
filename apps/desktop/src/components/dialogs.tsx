@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
+import { useSettings } from "@/lib/settings-store";
 import { useAgo } from "@/lib/text";
 
 type DialogProps = {
@@ -201,8 +202,11 @@ export function PublishDialog({
   onPublish,
 }: PublishProps) {
   const { t } = useTranslation();
+  const { verifyOnPublish } = useSettings();
   const [message, setMessage] = useState("");
-  const [verify, setVerify] = useState(true);
+  // Null until the user ticks or unticks the box: then the setting decides.
+  const [chosen, setChosen] = useState<boolean | null>(null);
+  const verify = chosen ?? verifyOnPublish;
   const fallback = status.task?.title ?? `Publish ${status.name}`;
 
   function submit(event: FormEvent) {
@@ -210,6 +214,7 @@ export function PublishDialog({
     onPublish(message.trim() === "" ? null : message.trim(), verify);
     onOpenChange(false);
     setMessage("");
+    setChosen(null);
   }
 
   return (
@@ -238,7 +243,7 @@ export function PublishDialog({
             <input
               type="checkbox"
               checked={verify}
-              onChange={(event) => setVerify(event.target.checked)}
+              onChange={(event) => setChosen(event.target.checked)}
             />
             {t("publish.verify")}
           </label>

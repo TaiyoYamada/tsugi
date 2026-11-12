@@ -70,11 +70,11 @@ fn the_window_can_drive_a_repository_from_setup_to_undo() {
     let window = window();
 
     // Not set up yet: the picker relies on this exact code.
-    let refused = invoke(&window, "open_repo", json!({ "path": path })).unwrap_err();
+    let refused = invoke(&window, "open_repo", json!({ "path": path, "watch": true })).unwrap_err();
     assert_eq!(refused["code"], "not_initialized", "{refused}");
     assert!(refused["message"].is_string());
 
-    let repo = invoke(&window, "init_repo", json!({ "path": path })).unwrap();
+    let repo = invoke(&window, "init_repo", json!({ "path": path, "watch": true })).unwrap();
     let repo = repo.as_str().unwrap();
     let overview = invoke(&window, "overview", json!({ "repo": repo })).unwrap();
     assert_eq!(overview["default_base"], "main");

@@ -1,5 +1,5 @@
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Main } from "@/components/Main";
@@ -15,6 +15,7 @@ import {
   withRepo,
   withoutRepo,
 } from "@/lib/repos";
+import { useSettings } from "@/lib/settings-store";
 import { useErrorText } from "@/lib/text";
 
 const REPOS_KEY = "tsugi.repos";
@@ -24,6 +25,7 @@ const MAX_RECENT = 8;
 
 export default function App() {
   const errorText = useErrorText();
+  const { watch } = useSettings();
   const [list, setList] = useState<RepoList>(() =>
     parseRepoList(
       localStorage.getItem(REPOS_KEY),
@@ -76,18 +78,31 @@ export default function App() {
   }, []);
 
   // When the app starts: open every repository on the list, which starts
-  // their watchers, and the directory given on the command line, if any.
+  // their watchers if the settings say so, and the directory given on the
+  // command line, if any. Later, when the setting changes, start or stop
+  // the watchers of the open repositories.
+  const started = useRef(false);
   useEffect(() => {
+    if (started.current) {
+      for (const repo of list.repos) {
+        // Fails for a watcher that was started with `tsugi watch start`,
+        // which is not the app's to stop.
+        void api.setWatching(repo, watch).catch(() => {});
+      }
+      return;
+    }
+    started.current = true;
     for (const repo of list.repos) {
       // A repository that cannot be opened stays on the list, marked as
       // such: its folder may be on a disk that is not connected right now.
-      void api.openRepo(repo).catch(() => {});
+      void api.openRepo(repo, watch).catch(() => {});
     }
     void api.launchPath().then((launched) => {
       if (launched) void opener.openPath(launched);
     });
-    // Runs once, with the list and the opener of that moment.
-  }, []);
+    // Runs when the app starts and when the setting changes, with the list
+    // of that moment.
+  }, [watch]);
 
   return (
     <>

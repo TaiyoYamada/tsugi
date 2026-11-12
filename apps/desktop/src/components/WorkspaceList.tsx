@@ -99,7 +99,7 @@ function WorkspaceRow({ status, conflicting, selected, onSelect }: RowProps) {
         className={cn(
           "size-2 shrink-0 rounded-full",
           session?.state === "working" && "animate-pulse bg-amber-500",
-          session?.state === "idle" && "bg-emerald-500",
+          session?.state === "idle" && "bg-added",
           !session && "border border-muted-foreground/40",
         )}
       />
@@ -115,10 +115,10 @@ function WorkspaceRow({ status, conflicting, selected, onSelect }: RowProps) {
         )}
         {status.changes && status.changes.files > 0 && (
           <>
-            <span className="text-emerald-600 dark:text-emerald-400">
+            <span className="text-added">
               +{status.changes.insertions}
             </span>
-            <span className="text-red-600 dark:text-red-400">
+            <span className="text-removed">
               -{status.changes.deletions}
             </span>
           </>

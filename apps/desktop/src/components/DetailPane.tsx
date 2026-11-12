@@ -385,7 +385,7 @@ function InfoTab({
                   className={
                     session.state === "working"
                       ? "text-amber-600 dark:text-amber-400"
-                      : "text-emerald-600 dark:text-emerald-400"
+                      : "text-added"
                   }
                 >
                   {t(`session.${session.state}`)}

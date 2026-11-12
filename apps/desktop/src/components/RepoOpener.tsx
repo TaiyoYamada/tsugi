@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api, isCommandError } from "@/lib/api";
+import { useSettings } from "@/lib/settings-store";
 
 type Opener = {
   /** Asks for a folder and opens it. */
@@ -31,12 +32,13 @@ export function useRepoOpener(
   onError: (error: unknown) => void,
 ): Opener {
   const { t } = useTranslation();
+  const { watch } = useSettings();
   // A repository that tsugi is not set up in yet, waiting for the answer.
   const [toSetUp, setToSetUp] = useState<string | null>(null);
 
   async function openPath(path: string) {
     try {
-      onOpen(await api.openRepo(path));
+      onOpen(await api.openRepo(path, watch));
     } catch (failure) {
       if (isCommandError(failure) && failure.code === "not_initialized") {
         setToSetUp(path);
@@ -54,7 +56,7 @@ export function useRepoOpener(
   async function setUp(path: string) {
     setToSetUp(null);
     try {
-      onOpen(await api.initRepo(path));
+      onOpen(await api.initRepo(path, watch));
     } catch (failure) {
       onError(failure);
     }

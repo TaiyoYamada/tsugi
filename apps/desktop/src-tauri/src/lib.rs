@@ -98,25 +98,41 @@ pub struct Detail {
 
 /// Watchers this app runs, by repository root. Setting the flag stops one.
 #[derive(Default)]
-struct Watchers(Mutex<HashMap<PathBuf, Arc<AtomicBool>>>);
+struct Watchers(Arc<Mutex<HashMap<PathBuf, Arc<AtomicBool>>>>);
 
 /// Starts a watcher for the repository unless one is running somewhere.
 fn start_watching(watchers: &Watchers, repo: &Repo) -> Result<(), Error> {
-    if watch::is_running(repo)? {
-        return Ok(());
-    }
     let root = repo.root().to_path_buf();
     let stop = Arc::new(AtomicBool::new(false));
-    watchers
-        .0
-        .lock()
-        .expect("no thread panics while holding the lock")
-        .insert(root.clone(), stop.clone());
+    {
+        // Checked and recorded under one lock: the window asks for the same
+        // repository from several places at once when it starts.
+        let mut running = watchers
+            .0
+            .lock()
+            .expect("no thread panics while holding the lock");
+        if running.contains_key(&root) || watch::is_running(repo)? {
+            return Ok(());
+        }
+        running.insert(root.clone(), stop.clone());
+    }
+    let running = watchers.0.clone();
     std::thread::spawn(move || {
         // The thread opens the repository itself: `Repo` is not shared
         // between threads.
         if let Ok(repo) = Repo::discover(&root) {
             let _ = watch::run(&repo, &stop, &|_| {});
+        }
+        // The watcher ended, because it was stopped or could not start.
+        // Forget it, unless a newer one took its place.
+        let mut running = running
+            .lock()
+            .expect("no thread panics while holding the lock");
+        if running
+            .get(&root)
+            .is_some_and(|current| Arc::ptr_eq(current, &stop))
+        {
+            running.remove(&root);
         }
     });
     Ok(())
@@ -129,17 +145,24 @@ fn launch_path() -> Option<PathBuf> {
     std::path::absolute(path).ok()
 }
 
+/// Opens a repository and returns its root. With `watch`, snapshots are
+/// taken as its files change for as long as it stays open.
 #[tauri::command(async)]
-fn open_repo(path: PathBuf, watchers: State<'_, Watchers>) -> CommandResult<PathBuf> {
+fn open_repo(path: PathBuf, watch: bool, watchers: State<'_, Watchers>) -> CommandResult<PathBuf> {
     let repo = Repo::discover(&path)?;
-    start_watching(&watchers, &repo)?;
+    if watch {
+        start_watching(&watchers, &repo)?;
+    }
     Ok(repo.root().to_path_buf())
 }
 
+/// Sets tsugi up in a repository and opens it.
 #[tauri::command(async)]
-fn init_repo(path: PathBuf, watchers: State<'_, Watchers>) -> CommandResult<PathBuf> {
+fn init_repo(path: PathBuf, watch: bool, watchers: State<'_, Watchers>) -> CommandResult<PathBuf> {
     let repo = Repo::init(&path)?;
-    start_watching(&watchers, &repo)?;
+    if watch {
+        start_watching(&watchers, &repo)?;
+    }
     Ok(repo.root().to_path_buf())
 }
 

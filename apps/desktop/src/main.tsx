@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useDark, useSettings } from "@/lib/settings-store";
+import { useActiveTheme, useSettings } from "@/lib/settings-store";
 
 import App from "./App";
 import "./index.css";
@@ -16,9 +16,6 @@ if (import.meta.env.VITE_MOCK) {
   installMock();
 }
 
-// `--background` of index.css, light and dark, as the window wants it.
-const WINDOW_BACKGROUND = { light: "#ffffff", dark: "#0a0a0a" };
-
 // A failed command is shown as it is. Retrying would only delay the message.
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -28,23 +25,21 @@ const root = document.getElementById("root");
 if (!root) throw new Error("index.html has no #root element");
 
 function Root() {
-  const { theme } = useSettings();
-  const dark = useDark();
+  const { theme: mode } = useSettings();
+  const { theme, colors } = useActiveTheme();
   // The window follows too. Its theme decides the colour of the title and
   // of the dialogs of the system; its background is what the title bar,
   // which is transparent, shows.
   useEffect(() => {
     const appWindow = getCurrentWindow();
-    void appWindow.setTheme(theme === "system" ? null : theme);
-    void appWindow.setBackgroundColor(
-      dark ? WINDOW_BACKGROUND.dark : WINDOW_BACKGROUND.light,
-    );
-  }, [theme, dark]);
+    void appWindow.setTheme(mode === "system" ? null : theme.kind);
+    void appWindow.setBackgroundColor(colors.background);
+  }, [mode, theme.kind, colors.background]);
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <App />
-        <Toaster position="bottom-right" theme={theme} />
+        <Toaster position="bottom-right" theme={theme.kind} />
       </TooltipProvider>
     </QueryClientProvider>
   );
