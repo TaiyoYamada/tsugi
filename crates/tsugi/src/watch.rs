@@ -1,76 +1,25 @@
-//! The watcher: a background process that snapshots a workspace shortly
-//! after its files change.
-//!
-//! Safety does not depend on it. Every command that overwrites files takes
-//! its own snapshot first; the watcher only makes the history finer.
+//! Starts and stops the watcher as a background process. The watcher
+//! itself is `tsugi_core::watch`.
 
-use std::collections::HashMap;
-use std::fs::{self, File, TryLockError};
+use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::mpsc::{self, RecvTimeoutError};
+use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
 
-use notify::{EventKind, RecursiveMode, Watcher};
-use tsugi_core::{Repo, Result, Trigger, Workspace};
+use tsugi_core::watch::is_running;
+use tsugi_core::{Repo, Result};
 
 use crate::refused;
-
-/// A workspace is snapshotted once its files were quiet for this long.
-const QUIET: Duration = Duration::from_millis(1500);
-/// ...or once this much time passed since the first change, so that an agent
-/// that never pauses is still snapshotted.
-const MAX_WAIT: Duration = Duration::from_secs(10);
-/// How often new and removed workspaces are looked for.
-const REFRESH: Duration = Duration::from_secs(5);
-/// Above this many changed paths the watcher stops asking Git whether all
-/// of them are ignored and takes the snapshot.
-const MAX_PATHS: usize = 256;
-
-struct Watched {
-    workspace: Workspace,
-    git_dir: PathBuf,
-}
-
-struct Pending {
-    first: Instant,
-    last: Instant,
-    paths: Vec<PathBuf>,
-    /// A commit, checkout or reset happened.
-    head_moved: bool,
-}
-
-fn lock_path(repo: &Repo) -> PathBuf {
-    repo.state_dir().join("watch.lock")
-}
 
 fn pid_path(repo: &Repo) -> PathBuf {
     repo.state_dir().join("watch.pid")
 }
 
-/// The watcher holds a lock on this file for as long as it lives, so the
-/// operating system tells us whether one is running, even after a crash.
-fn try_lock(repo: &Repo) -> Result<Option<File>> {
-    let file = File::options()
-        .create(true)
-        .truncate(false)
-        .write(true)
-        .open(lock_path(repo))?;
-    match file.try_lock() {
-        Ok(()) => Ok(Some(file)),
-        Err(TryLockError::WouldBlock) => Ok(None),
-        Err(TryLockError::Error(error)) => Err(error.into()),
-    }
-}
-
-pub fn is_running(repo: &Repo) -> Result<bool> {
-    match try_lock(repo)? {
-        Some(file) => {
-            file.unlock()?;
-            Ok(false)
-        }
-        None => Ok(true),
-    }
+/// Runs the watcher in this process until it is killed.
+pub fn run(repo: &Repo) -> Result<()> {
+    fs::write(pid_path(repo), std::process::id().to_string())?;
+    tsugi_core::watch::run(repo, &AtomicBool::new(false), &|line| println!("{line}"))
 }
 
 /// Starts the watcher in the background. Returns false if one was running.
@@ -112,7 +61,12 @@ pub fn stop(repo: &Repo) -> Result<bool> {
         let _ = fs::remove_file(pid_path(repo));
         return Ok(false);
     }
-    let pid = fs::read_to_string(pid_path(repo))?;
+    // Only a watcher started by `tsugi watch` writes its process id.
+    let Ok(pid) = fs::read_to_string(pid_path(repo)) else {
+        return Err(refused(
+            "the watcher runs inside another program, such as the desktop app; stop it there",
+        ));
+    };
     // The watcher can be stopped at any point: a snapshot becomes visible in
     // one atomic ref update or not at all.
     Command::new("kill").arg(pid.trim()).status()?;
@@ -128,184 +82,4 @@ pub fn stop(repo: &Repo) -> Result<bool> {
     }
     let _ = fs::remove_file(pid_path(repo));
     Ok(true)
-}
-
-/// Runs the watcher until it is killed or tsugi is removed from the
-/// repository.
-pub fn run(repo: &Repo) -> Result<()> {
-    // `is_running` takes the lock for an instant to probe; wait that out.
-    let deadline = Instant::now() + Duration::from_secs(1);
-    let _lock = loop {
-        if let Some(file) = try_lock(repo)? {
-            break file;
-        }
-        if Instant::now() >= deadline {
-            return Err(refused("a watcher is already running"));
-        }
-        std::thread::sleep(Duration::from_millis(20));
-    };
-    fs::write(pid_path(repo), std::process::id().to_string())?;
-
-    let (sender, events) = mpsc::channel();
-    let mut watcher = notify::recommended_watcher(sender)
-        .map_err(|error| refused(format!("cannot watch files: {error}")))?;
-    let mut watched: Vec<Watched> = Vec::new();
-    let mut pending: HashMap<String, Pending> = HashMap::new();
-    let mut next_refresh = Instant::now();
-
-    loop {
-        if !repo.state_dir().exists() {
-            return Ok(());
-        }
-        if Instant::now() >= next_refresh {
-            if let Err(error) = refresh(repo, &mut watcher, &mut watched) {
-                println!("refresh failed: {error}");
-            }
-            next_refresh = Instant::now() + REFRESH;
-        }
-
-        match events.recv_timeout(Duration::from_millis(250)) {
-            Ok(Ok(event)) => {
-                // Reading a file is an event on Linux; it changes nothing.
-                if !matches!(event.kind, EventKind::Access(_)) {
-                    for path in event.paths {
-                        record(&path, &watched, &mut pending);
-                    }
-                }
-            }
-            Ok(Err(error)) => println!("watch error: {error}"),
-            Err(RecvTimeoutError::Timeout) => {}
-            Err(RecvTimeoutError::Disconnected) => return Ok(()),
-        }
-
-        let now = Instant::now();
-        let due: Vec<String> = pending
-            .iter()
-            .filter(|(_, changes)| {
-                now.duration_since(changes.last) >= QUIET
-                    || now.duration_since(changes.first) >= MAX_WAIT
-            })
-            .map(|(id, _)| id.clone())
-            .collect();
-        for id in due {
-            let changes = pending.remove(&id).expect("the key was just listed");
-            let Some(entry) = watched.iter().find(|entry| entry.workspace.id == id) else {
-                continue;
-            };
-            if let Err(error) = snapshot(repo, &entry.workspace, &changes) {
-                println!("snapshot of `{}` failed: {error}", entry.workspace.name);
-            }
-        }
-    }
-}
-
-/// Starts watching new workspaces and stops watching removed ones.
-fn refresh(
-    repo: &Repo,
-    watcher: &mut notify::RecommendedWatcher,
-    watched: &mut Vec<Watched>,
-) -> Result<()> {
-    let first_time = watched.is_empty();
-    let current = repo.refresh()?;
-
-    watched.retain(|entry| {
-        let exists = current.iter().any(|ws| ws.id == entry.workspace.id);
-        if !exists {
-            // The directory is gone; the watch usually went with it.
-            let _ = watcher.unwatch(&entry.workspace.path);
-            println!("stopped watching `{}`", entry.workspace.name);
-        }
-        exists
-    });
-
-    for workspace in &current {
-        if watched
-            .iter()
-            .any(|entry| entry.workspace.id == workspace.id)
-        {
-            continue;
-        }
-        let git_dir = repo.git_dir(workspace)?;
-        let watch = |watcher: &mut notify::RecommendedWatcher, path: &Path| {
-            watcher
-                .watch(path, RecursiveMode::Recursive)
-                .map_err(|error| refused(format!("cannot watch {}: {error}", path.display())))
-        };
-        watch(watcher, &workspace.path)?;
-        // Git directories normally live inside the main worktree, which is
-        // watched as a workspace. `git init --separate-git-dir` puts them
-        // elsewhere.
-        if !current.iter().any(|ws| git_dir.starts_with(&ws.path)) {
-            watch(watcher, &git_dir)?;
-        }
-        println!("watching `{}`", workspace.name);
-        watched.push(Watched {
-            workspace: workspace.clone(),
-            git_dir,
-        });
-    }
-
-    if first_time {
-        // Whatever changed while no watcher was running.
-        repo.status(None)?;
-    }
-    Ok(())
-}
-
-/// Notes that `path` changed, if that can matter to a snapshot.
-fn record(path: &Path, watched: &[Watched], pending: &mut HashMap<String, Pending>) {
-    // A commit, checkout or reset appends to the reflog of HEAD; a checkout
-    // also rewrites HEAD itself.
-    for entry in watched {
-        if path == entry.git_dir.join("HEAD") || path == entry.git_dir.join("logs").join("HEAD") {
-            touch(pending, &entry.workspace).head_moved = true;
-            return;
-        }
-    }
-    // Everything else inside a Git directory is Git's own bookkeeping,
-    // including the objects and refs tsugi writes for snapshots.
-    if path.components().any(|part| part.as_os_str() == ".git") {
-        return;
-    }
-    let inside = watched
-        .iter()
-        .filter(|entry| path.starts_with(&entry.workspace.path))
-        .max_by_key(|entry| entry.workspace.path.components().count());
-    if let Some(entry) = inside {
-        let changes = touch(pending, &entry.workspace);
-        if changes.paths.len() <= MAX_PATHS {
-            changes.paths.push(path.to_path_buf());
-        }
-    }
-}
-
-/// The pending changes of a workspace, with the time of the last change set
-/// to now.
-fn touch<'a>(pending: &'a mut HashMap<String, Pending>, workspace: &Workspace) -> &'a mut Pending {
-    let now = Instant::now();
-    let changes = pending.entry(workspace.id.clone()).or_insert(Pending {
-        first: now,
-        last: now,
-        paths: Vec::new(),
-        head_moved: false,
-    });
-    changes.last = now;
-    changes
-}
-
-fn snapshot(repo: &Repo, workspace: &Workspace, changes: &Pending) -> Result<()> {
-    // Builds write thousands of ignored files. Asking Git about the paths is
-    // much cheaper than hashing the working tree to find that nothing that
-    // counts has changed.
-    let only_ignored = !changes.head_moved
-        && changes.paths.len() <= MAX_PATHS
-        && repo.all_ignored(workspace, &changes.paths)?;
-    if only_ignored {
-        return Ok(());
-    }
-    let outcome = repo.snapshot(workspace, Trigger::Watch)?;
-    if outcome.created {
-        println!("snapshot {}@{}", workspace.name, outcome.snapshot.seq);
-    }
-    Ok(())
 }

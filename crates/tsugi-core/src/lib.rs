@@ -18,6 +18,7 @@ mod repo;
 pub mod session;
 mod snapshot;
 mod store;
+pub mod watch;
 mod workspace;
 
 pub use config::Config;

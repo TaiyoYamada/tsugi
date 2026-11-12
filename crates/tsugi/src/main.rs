@@ -412,7 +412,7 @@ fn dispatch(repo: &Repo, dir: &Path, command: Command, out: &Output) -> Result<(
             });
         }
         Command::Watch(WatchCommand::Status) => {
-            let running = watch::is_running(repo)?;
+            let running = tsugi_core::watch::is_running(repo)?;
             out.print(&json!({ "running": running }), || {
                 if running {
                     "the watcher is running\n".to_string()
