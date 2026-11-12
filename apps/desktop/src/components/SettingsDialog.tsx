@@ -401,7 +401,7 @@ function About() {
   return (
     <>
       <div>
-        <h3 className="text-lg font-semibold">tsugi</h3>
+        <h3 className="text-lg font-semibold">tsugi desktop</h3>
         <p className="text-sm text-muted-foreground">{t("picker.tagline")}</p>
       </div>
       <dl className="grid grid-cols-[7rem_1fr] gap-x-4 gap-y-1.5 text-sm">

@@ -36,7 +36,7 @@ export function RepoPicker({
         <SettingsIcon />
       </Button>
       <div className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">tsugi</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">tsugi desktop</h1>
         <p className="mt-2 text-muted-foreground">{t("picker.tagline")}</p>
       </div>
 

@@ -17,7 +17,7 @@ The property test runs 24 random histories by default.
 `TSUGI_PROPTEST_CASES=500 cargo test -p tsugi-core --test properties` runs
 more.
 
-The desktop app has its own steps, in `apps/desktop`:
+The desktop app, tsugi desktop, has its own steps, in `apps/desktop`:
 
 ```
 pnpm install
@@ -39,7 +39,7 @@ check fails otherwise.
 crates/tsugi-core   the layer: everything tsugi does
 crates/tsugi        the command line tool
 crates/tsugi-tui    the terminal app
-apps/desktop        the desktop app (Tauri and React)
+apps/desktop        tsugi desktop, the desktop app (Tauri and React)
 docs/design.md      what is stored and what each operation guarantees
 docs/cli.md         the JSON output of the command line tool
 ```

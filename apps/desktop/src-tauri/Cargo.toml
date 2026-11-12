@@ -1,6 +1,6 @@
 [package]
 name = "tsugi-desktop"
-description = "The desktop app of tsugi"
+description = "tsugi desktop, the desktop app of tsugi"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

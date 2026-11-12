@@ -41,8 +41,8 @@ tsugi answers them with four things.
 ## Status
 
 Version 0.1. The library, the command line tool and the terminal app run on
-macOS and Linux. The desktop app is built and tested on macOS. Windows is
-not supported.
+macOS and Linux. The desktop app, tsugi desktop, is built and tested on
+macOS. Windows is not supported.
 
 ## Install
 
@@ -109,7 +109,7 @@ keep_days = 14
 verify = ["cargo test"]
 ```
 
-## The desktop app
+## tsugi desktop
 
 ```
 cd apps/desktop
@@ -117,10 +117,11 @@ pnpm install
 pnpm tauri build
 ```
 
-The app shows the same things as the terminal app in a window, for several
-repositories at once. The repositories you opened are listed on the left,
-each with the number of agents at work and of conflicts in it, so that
-something that happens in a repository that is not on screen is noticed.
+tsugi desktop shows the same things as the terminal app in a window, for
+several repositories at once. The repositories you opened are listed on the
+left, each with the number of agents at work and of conflicts in it, so
+that something that happens in a repository that is not on screen is
+noticed.
 The app runs the watcher for every repository on the list.
 `tsugi-desktop <dir>` adds a repository directly.
 
