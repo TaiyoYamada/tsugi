@@ -1,7 +1,12 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "What the main window may ask of the system: its own commands and the folder picker.",
+  "description": "What the main window may ask of the system: its own commands, the folder picker, and giving the window and its title bar the appearance chosen in the settings.",
   "windows": ["main"],
-  "permissions": ["core:default", "dialog:allow-open"]
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-theme",
+    "core:window:allow-set-background-color",
+    "dialog:allow-open"
+  ]
 }

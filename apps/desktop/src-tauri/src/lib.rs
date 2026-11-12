@@ -11,7 +11,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use serde::Serialize;
-use tauri::State;
+use tauri::menu::{Menu, MenuItem, MenuItemKind, PredefinedMenuItem};
+use tauri::{Emitter, State};
 use ts_rs::TS;
 use tsugi_core::{
     Conflict, Diff, Error, Operation, PublishOutcome, Removal, Repo, RestoreOutcome, SessionState,
@@ -349,8 +350,30 @@ pub fn with_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
         ])
 }
 
+/// Name of the event that asks the window to show the settings.
+const OPEN_SETTINGS: &str = "open-settings";
+
+/// Adds "Settings…" with its usual shortcut to the standard menu, below
+/// "About" in the application menu, where macOS apps have it.
+fn install_menu(app: &tauri::App) -> tauri::Result<()> {
+    let menu = Menu::default(app.handle())?;
+    let settings = MenuItem::with_id(app, OPEN_SETTINGS, "Settings…", true, Some("CmdOrCtrl+,"))?;
+    if let Some(MenuItemKind::Submenu(first)) = menu.items()?.into_iter().next() {
+        first.insert_items(&[&PredefinedMenuItem::separator(app)?, &settings], 1)?;
+    }
+    app.set_menu(menu)?;
+    app.on_menu_event(|app, event| {
+        if event.id() == OPEN_SETTINGS {
+            // Fails only if the window is gone, and then nobody is asking.
+            let _ = app.emit(OPEN_SETTINGS, ());
+        }
+    });
+    Ok(())
+}
+
 pub fn run() {
     with_commands(tauri::Builder::default().plugin(tauri_plugin_dialog::init()))
+        .setup(|app| Ok(install_menu(app)?))
         .run(tauri::generate_context!())
         .expect("the app starts");
 }

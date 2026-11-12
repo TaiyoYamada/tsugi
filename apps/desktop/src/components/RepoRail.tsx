@@ -37,7 +37,7 @@ export function RepoRail({
 }: Props) {
   const { t } = useTranslation();
   return (
-    <aside className="flex w-52 shrink-0 flex-col border-r bg-muted/40">
+    <aside className="flex w-52 shrink-0 flex-col border-r">
       <h2 className="px-4 pt-3 pb-1 text-xs font-medium text-muted-foreground uppercase">
         {t("rail.title")}
       </h2>

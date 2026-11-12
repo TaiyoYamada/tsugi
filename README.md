@@ -125,7 +125,7 @@ The app runs the watcher for every repository on the list.
 `tsugi-desktop <dir>` adds a repository directly.
 
 The app is in English and Japanese, and light or dark. Both follow the
-system unless they are set in the settings (the gear button).
+system unless they are set in the settings (the gear button, or ⌘,).
 
 ## What tsugi writes, and how to remove it
 

@@ -39,12 +39,22 @@ export function updateSettings(change: Partial<Settings>) {
   for (const listener of listeners) listener();
 }
 
-export function useSettings(): Settings {
-  return useSyncExternalStore(
-    (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    () => current,
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  systemDark.addEventListener("change", listener);
+  return () => {
+    listeners.delete(listener);
+    systemDark.removeEventListener("change", listener);
+  };
+}
+
+/** Whether the app is dark right now, whatever decided it. */
+export function useDark(): boolean {
+  return useSyncExternalStore(subscribe, () =>
+    isDark(current.theme, systemDark.matches),
   );
+}
+
+export function useSettings(): Settings {
+  return useSyncExternalStore(subscribe, () => current);
 }

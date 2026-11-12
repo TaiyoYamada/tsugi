@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -67,6 +68,12 @@ export default function App() {
       toast.error(summary, { description: detail });
     }
   });
+
+  // "Settings…" in the menu of the app, and its shortcut.
+  useEffect(() => {
+    const unlisten = listen("open-settings", () => setShowingSettings(true));
+    return () => void unlisten.then((stop) => stop());
+  }, []);
 
   // When the app starts: open every repository on the list, which starts
   // their watchers, and the directory given on the command line, if any.

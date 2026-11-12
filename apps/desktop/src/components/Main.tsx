@@ -14,6 +14,11 @@ import {
 import { ErrorNote } from "@/components/ErrorNote";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   ConflictPanel,
   WorkspaceList,
   conflictsOf,
@@ -114,10 +119,16 @@ export function Main({ repo }: Props) {
   return (
     <div className="flex min-w-0 flex-1 flex-col">
       <header className="flex items-center gap-2 border-b px-4 py-2">
-        <div className="min-w-0">
-          <h1 className="truncate font-semibold">{baseName(repo)}</h1>
-          <p className="truncate text-xs text-muted-foreground">{repo}</p>
-        </div>
+        {/* Where the repository is matters rarely: the path shows when the
+            pointer rests on the name. */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <h1 className="min-w-0 truncate font-semibold">{baseName(repo)}</h1>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="start">
+            {repo}
+          </TooltipContent>
+        </Tooltip>
         <div className="ml-auto flex shrink-0 items-center gap-1.5">
           <Button
             variant="ghost"

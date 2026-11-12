@@ -1,7 +1,7 @@
 // Fake answers for the commands of the Rust side, so that the screens can
 // be worked on in a browser: `VITE_MOCK=1 pnpm dev`. Not part of a build.
 
-import { mockIPC } from "@tauri-apps/api/mocks";
+import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 
 import type { Detail } from "@/bindings/Detail";
 import type { Diff } from "@/bindings/Diff";
@@ -204,12 +204,19 @@ export function installMock() {
     localStorage.setItem("tsugi.repo", ROOT);
   }
 
+  mockWindows("main");
   mockIPC((command, payload) => {
     const args = new Map<string, unknown>(Object.entries(payload ?? {}));
     const done = <T,>(value: T) => ({ value, notices: [] });
     const workspace = String(args.get("workspace") ?? "");
     switch (command) {
       case "launch_path":
+      case "plugin:window|set_theme":
+      case "plugin:window|set_background_color":
+        return null;
+      case "plugin:event|listen":
+        return 0;
+      case "plugin:event|unlisten":
         return null;
       case "plugin:dialog|open":
         return "/work/docs";
