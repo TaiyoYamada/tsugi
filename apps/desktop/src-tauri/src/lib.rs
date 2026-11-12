@@ -14,8 +14,8 @@ use serde::Serialize;
 use tauri::State;
 use ts_rs::TS;
 use tsugi_core::{
-    Conflict, Diff, Error, Operation, PublishOutcome, Removal, Repo, RestoreOutcome, Snapshot,
-    SnapshotOutcome, SyncOutcome, Task, Trigger, Workspace, WorkspaceStatus, watch,
+    Conflict, Diff, Error, Operation, PublishOutcome, Removal, Repo, RestoreOutcome, SessionState,
+    Snapshot, SnapshotOutcome, SyncOutcome, Task, Trigger, Workspace, WorkspaceStatus, watch,
 };
 
 /// Longest list of snapshots the app shows for a workspace.
@@ -69,6 +69,19 @@ pub struct Overview {
     pub statuses: Vec<WorkspaceStatus>,
     pub conflicts: Vec<Conflict>,
     pub tasks: Vec<Task>,
+}
+
+/// What the list of repositories shows for one of them.
+#[derive(Debug, Serialize, TS)]
+#[ts(export)]
+pub struct RepoSummary {
+    pub workspaces: u32,
+    /// Workspaces whose most recently active agent is in the middle of a
+    /// turn.
+    pub working: u32,
+    /// Pairs of workspaces, or of a workspace and its base branch, that
+    /// would conflict.
+    pub conflicts: u32,
 }
 
 /// What the detail pane shows for one workspace.
@@ -127,6 +140,41 @@ fn init_repo(path: PathBuf, watchers: State<'_, Watchers>) -> CommandResult<Path
     let repo = Repo::init(&path)?;
     start_watching(&watchers, &repo)?;
     Ok(repo.root().to_path_buf())
+}
+
+/// Stops the watcher this app runs for the repository, if it runs one.
+/// Called when the repository is taken off the list.
+#[tauri::command(async)]
+fn close_repo(repo: PathBuf, watchers: State<'_, Watchers>) -> CommandResult<()> {
+    let stop = watchers
+        .0
+        .lock()
+        .expect("no thread panics while holding the lock")
+        .remove(&repo);
+    if let Some(stop) = stop {
+        stop.store(true, Ordering::Relaxed);
+    }
+    Ok(())
+}
+
+#[tauri::command(async)]
+fn summary(repo: PathBuf) -> CommandResult<RepoSummary> {
+    let repo = Repo::discover(&repo)?;
+    let statuses = repo.poll_status(std::env::home_dir().as_deref())?;
+    let working = statuses
+        .iter()
+        .filter(|status| {
+            status
+                .sessions
+                .first()
+                .is_some_and(|session| session.state == SessionState::Working)
+        })
+        .count();
+    Ok(RepoSummary {
+        workspaces: statuses.len() as u32,
+        working: working as u32,
+        conflicts: repo.conflicts_among(&statuses)?.len() as u32,
+    })
 }
 
 #[tauri::command(async)]
@@ -283,6 +331,8 @@ pub fn with_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
             launch_path,
             open_repo,
             init_repo,
+            close_repo,
+            summary,
             overview,
             detail,
             diff,

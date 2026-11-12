@@ -196,6 +196,27 @@ fn the_window_can_drive_a_repository_from_setup_to_undo() {
     let watching = invoke(&window, "set_watching", json!({ "repo": repo, "on": true })).unwrap();
     assert_eq!(watching, true);
 
+    // The list of repositories asks for a summary of each, and taking a
+    // repository off the list stops its watcher.
+    let summary = invoke(&window, "summary", json!({ "repo": repo })).unwrap();
+    assert_eq!(
+        summary,
+        json!({ "workspaces": 1, "working": 0, "conflicts": 0 })
+    );
+    invoke(&window, "close_repo", json!({ "repo": repo })).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    loop {
+        let overview = invoke(&window, "overview", json!({ "repo": repo })).unwrap();
+        if overview["watching"] == false {
+            break;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the watcher did not stop"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
     let missing = invoke(
         &window,
         "detail",

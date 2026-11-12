@@ -12,6 +12,8 @@ import type { Trigger } from "@/bindings/Trigger";
 import type { WorkspaceStatus } from "@/bindings/WorkspaceStatus";
 
 const ROOT = "/work/shop";
+/** A second, quiet repository, to show the list of repositories. */
+const OTHER = "/work/blog";
 const now = () => Math.floor(Date.now() / 1000);
 
 const PATCH = `diff --git a/src/login.ts b/src/login.ts
@@ -146,7 +148,25 @@ const operations: Operation[] = [
   },
 ];
 
-function overview(): Overview {
+function overview(repo: string): Overview {
+  if (repo === OTHER) {
+    return {
+      root: OTHER,
+      default_base: "main",
+      watching: true,
+      statuses: [
+        status("blog", null, {
+          path: OTHER,
+          branch: "refs/heads/main",
+          origin: "adopted",
+          is_main: true,
+          changes: { files: 0, insertions: 0, deletions: 0 },
+        }),
+      ],
+      conflicts: [],
+      tasks: [],
+    };
+  }
   return {
     root: ROOT,
     default_base: "main",
@@ -176,9 +196,13 @@ function detail(workspace: string): Detail {
 
 /** Answers every command the app sends. */
 export function installMock() {
-  // Start on the main screen; `#picker` starts on the repository picker.
-  if (location.hash === "#picker") localStorage.removeItem("tsugi.repo");
-  else localStorage.setItem("tsugi.repo", ROOT);
+  // Start with two repositories open; `#picker` starts with none.
+  if (location.hash === "#picker") {
+    localStorage.setItem("tsugi.repos", "[]");
+  } else if (localStorage.getItem("tsugi.repos") === null) {
+    localStorage.setItem("tsugi.repos", JSON.stringify([ROOT, OTHER]));
+    localStorage.setItem("tsugi.repo", ROOT);
+  }
 
   mockIPC((command, payload) => {
     const args = new Map<string, unknown>(Object.entries(payload ?? {}));
@@ -188,11 +212,25 @@ export function installMock() {
       case "launch_path":
         return null;
       case "plugin:dialog|open":
+        return "/work/docs";
       case "open_repo":
       case "init_repo":
-        return ROOT;
+        return args.get("path");
+      case "close_repo":
+        return null;
+      case "summary":
+        if (args.get("repo") === ROOT) {
+          return { workspaces: statuses.length, working: 1, conflicts: 1 };
+        }
+        if (args.get("repo") === OTHER) {
+          return { workspaces: 1, working: 0, conflicts: 0 };
+        }
+        throw { code: "not_a_repository", message: "not inside a git repository: /work/docs" };
       case "overview":
-        return overview();
+        if (args.get("repo") !== ROOT && args.get("repo") !== OTHER) {
+          throw { code: "not_a_repository", message: "not inside a git repository: /work/docs" };
+        }
+        return overview(String(args.get("repo")));
       case "detail":
         return detail(workspace);
       case "diff":

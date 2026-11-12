@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import type { Conflict } from "@/bindings/Conflict";
 import type { Overview } from "@/bindings/Overview";
 import type { WorkspaceStatus } from "@/bindings/WorkspaceStatus";
@@ -10,7 +12,8 @@ type Props = {
   onSelect: (id: string) => void;
 };
 
-type Group = { title: string; statuses: WorkspaceStatus[] };
+/** `title` is null for the workspaces that belong to no task. */
+type Group = { title: string | null; statuses: WorkspaceStatus[] };
 
 /** Workspaces grouped by task, in the order the tasks were created. */
 function groupByTask(overview: Overview): Group[] {
@@ -21,7 +24,7 @@ function groupByTask(overview: Overview): Group[] {
     ),
   }));
   groups.push({
-    title: "No task",
+    title: null,
     statuses: overview.statuses.filter((status) => status.task_id === null),
   });
   return groups.filter((group) => group.statuses.length > 0);
@@ -36,12 +39,13 @@ export function conflictsOf(conflicts: Conflict[], name: string): Conflict[] {
 }
 
 export function WorkspaceList({ overview, selectedId, onSelect }: Props) {
+  const { t } = useTranslation();
   return (
     <nav className="flex flex-col gap-4 p-3">
       {groupByTask(overview).map((group) => (
-        <section key={group.title}>
+        <section key={group.title ?? ""}>
           <h2 className="mb-1 px-2 text-xs font-medium text-muted-foreground uppercase">
-            {group.title}
+            {group.title ?? t("list.noTask")}
           </h2>
           <ul className="flex flex-col gap-0.5">
             {group.statuses.map((status) => (
@@ -71,6 +75,7 @@ type RowProps = {
 };
 
 function WorkspaceRow({ status, conflicting, selected, onSelect }: RowProps) {
+  const { t } = useTranslation();
   const session = status.sessions[0];
   return (
     <button
@@ -85,8 +90,11 @@ function WorkspaceRow({ status, conflicting, selected, onSelect }: RowProps) {
       <span
         title={
           session
-            ? `${session.agent} is ${session.state}`
-            : "no agent session found"
+            ? t("list.agentState", {
+                agent: session.agent,
+                state: t(`session.${session.state}`),
+              })
+            : t("list.noSession")
         }
         className={cn(
           "size-2 shrink-0 rounded-full",
@@ -97,10 +105,14 @@ function WorkspaceRow({ status, conflicting, selected, onSelect }: RowProps) {
       />
       <span className="truncate">{status.name}</span>
       {status.is_main && (
-        <span className="shrink-0 text-xs text-muted-foreground">main</span>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {t("list.mainWorktree")}
+        </span>
       )}
       <span className="ml-auto flex shrink-0 items-center gap-1.5 text-xs">
-        {conflicting && <Badge variant="destructive">conflict</Badge>}
+        {conflicting && (
+          <Badge variant="destructive">{t("list.conflict")}</Badge>
+        )}
         {status.changes && status.changes.files > 0 && (
           <>
             <span className="text-emerald-600 dark:text-emerald-400">
@@ -117,18 +129,19 @@ function WorkspaceRow({ status, conflicting, selected, onSelect }: RowProps) {
 }
 
 export function ConflictPanel({ conflicts }: { conflicts: Conflict[] }) {
+  const { t } = useTranslation();
   if (conflicts.length === 0) return null;
   return (
     <section className="border-t p-3">
       <h2 className="mb-2 px-2 text-xs font-medium text-destructive uppercase">
-        Conflicts
+        {t("list.conflicts")}
       </h2>
       <ul className="flex flex-col gap-2 px-2 text-xs">
         {conflicts.map((conflict) => (
           <li key={`${conflict.workspace}/${conflict.other}`}>
             <p className="font-medium">
               {conflict.workspace} × {conflict.other}
-              {conflict.other_is_base && " (base)"}
+              {conflict.other_is_base && ` ${t("list.isBase")}`}
             </p>
             <p className="truncate font-mono text-muted-foreground">
               {conflict.files.join(", ")}

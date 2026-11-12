@@ -1,81 +1,57 @@
-import { open as openDialog } from "@tauri-apps/plugin-dialog";
-import { FolderOpenIcon } from "lucide-react";
-import { useState } from "react";
+import { FolderOpenIcon, SettingsIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import { ErrorNote } from "@/components/ErrorNote";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { api, errorMessage, isCommandError } from "@/lib/api";
 import { baseName } from "@/lib/format";
 
 type Props = {
+  /** Repositories that were open before, most recent first. */
   recent: string[];
-  onOpen: (root: string) => void;
+  /** Why the last attempt to open a repository failed, if it did. */
+  error: unknown;
+  onChoose: () => void;
+  onOpenPath: (path: string) => void;
+  onSettings: () => void;
 };
 
-/** The first screen: choose the repository to work with. */
-export function RepoPicker({ recent, onOpen }: Props) {
-  const [error, setError] = useState<string | null>(null);
-  // A repository that tsugi is not set up in yet, waiting for the answer.
-  const [toSetUp, setToSetUp] = useState<string | null>(null);
-
-  async function openPath(path: string) {
-    setError(null);
-    try {
-      onOpen(await api.openRepo(path));
-    } catch (failure) {
-      if (isCommandError(failure) && failure.code === "not_initialized") {
-        setToSetUp(path);
-      } else {
-        setError(errorMessage(failure));
-      }
-    }
-  }
-
-  async function choose() {
-    const path = await openDialog({ directory: true, multiple: false });
-    if (path) await openPath(path);
-  }
-
-  async function setUp(path: string) {
-    setToSetUp(null);
-    try {
-      onOpen(await api.initRepo(path));
-    } catch (failure) {
-      setError(errorMessage(failure));
-    }
-  }
-
+/** The screen shown while no repository is open. */
+export function RepoPicker({
+  recent,
+  error,
+  onChoose,
+  onOpenPath,
+  onSettings,
+}: Props) {
+  const { t } = useTranslation();
   return (
-    <main className="flex h-screen flex-col items-center justify-center gap-8 p-8">
+    <main className="relative flex h-screen flex-col items-center justify-center gap-8 p-8">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="absolute top-3 right-3"
+        aria-label={t("header.settings")}
+        onClick={onSettings}
+      >
+        <SettingsIcon />
+      </Button>
       <div className="text-center">
         <h1 className="text-3xl font-semibold tracking-tight">tsugi</h1>
-        <p className="mt-2 text-muted-foreground">
-          Every workspace of a repository, and what the agents in them are
-          doing.
-        </p>
+        <p className="mt-2 text-muted-foreground">{t("picker.tagline")}</p>
       </div>
 
-      <Button size="lg" onClick={choose}>
+      <Button size="lg" onClick={onChoose}>
         <FolderOpenIcon />
-        Open a repository
+        {t("picker.open")}
       </Button>
-      {error && (
-        <p role="alert" className="max-w-lg text-center text-sm text-destructive">
-          {error}
-        </p>
+      {error !== null && (
+        <ErrorNote error={error} className="max-w-lg text-center" />
       )}
 
       {recent.length > 0 && (
         <section className="w-full max-w-lg">
           <h2 className="mb-2 text-xs font-medium text-muted-foreground uppercase">
-            Recent
+            {t("picker.recent")}
           </h2>
           <ul className="divide-y rounded-lg border">
             {recent.map((path) => (
@@ -83,7 +59,7 @@ export function RepoPicker({ recent, onOpen }: Props) {
                 <button
                   type="button"
                   className="flex w-full flex-col px-3 py-2 text-left hover:bg-muted"
-                  onClick={() => openPath(path)}
+                  onClick={() => onOpenPath(path)}
                 >
                   <span className="text-sm font-medium">{baseName(path)}</span>
                   <span className="truncate text-xs text-muted-foreground">
@@ -95,28 +71,6 @@ export function RepoPicker({ recent, onOpen }: Props) {
           </ul>
         </section>
       )}
-
-      <Dialog
-        open={toSetUp !== null}
-        onOpenChange={(open) => !open && setToSetUp(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Set tsugi up in this repository?</DialogTitle>
-            <DialogDescription>
-              tsugi keeps its data inside the .git directory and in refs under
-              refs/tsugi/. The repository stays an ordinary Git repository,
-              and `tsugi uninstall` removes everything again.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setToSetUp(null)}>
-              Cancel
-            </Button>
-            <Button onClick={() => toSetUp && setUp(toSetUp)}>Set up</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }

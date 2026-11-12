@@ -4,6 +4,7 @@ import { createRoot } from "react-dom/client";
 
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { useSettings } from "@/lib/settings-store";
 
 import App from "./App";
 import "./index.css";
@@ -14,13 +15,6 @@ if (import.meta.env.VITE_MOCK) {
   installMock();
 }
 
-// The app follows the appearance of the system.
-const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
-const applyTheme = () =>
-  document.documentElement.classList.toggle("dark", prefersDark.matches);
-applyTheme();
-prefersDark.addEventListener("change", applyTheme);
-
 // A failed command is shown as it is. Retrying would only delay the message.
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false } },
@@ -29,13 +23,20 @@ const queryClient = new QueryClient({
 const root = document.getElementById("root");
 if (!root) throw new Error("index.html has no #root element");
 
-createRoot(root).render(
-  <StrictMode>
+function Root() {
+  const { theme } = useSettings();
+  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <App />
-        <Toaster position="bottom-right" />
+        <Toaster position="bottom-right" theme={theme} />
       </TooltipProvider>
     </QueryClientProvider>
+  );
+}
+
+createRoot(root).render(
+  <StrictMode>
+    <Root />
   </StrictMode>,
 );

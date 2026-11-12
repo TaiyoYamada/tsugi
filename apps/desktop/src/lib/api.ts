@@ -11,6 +11,7 @@ import type { Outcome } from "@/bindings/Outcome";
 import type { Overview } from "@/bindings/Overview";
 import type { PublishOutcome } from "@/bindings/PublishOutcome";
 import type { Removal } from "@/bindings/Removal";
+import type { RepoSummary } from "@/bindings/RepoSummary";
 import type { RestoreOutcome } from "@/bindings/RestoreOutcome";
 import type { SnapshotOutcome } from "@/bindings/SnapshotOutcome";
 import type { SyncOutcome } from "@/bindings/SyncOutcome";
@@ -21,6 +22,8 @@ export const api = {
   launchPath: () => invoke<string | null>("launch_path"),
   openRepo: (path: string) => invoke<string>("open_repo", { path }),
   initRepo: (path: string) => invoke<string>("init_repo", { path }),
+  closeRepo: (repo: string) => invoke<null>("close_repo", { repo }),
+  summary: (repo: string) => invoke<RepoSummary>("summary", { repo }),
   overview: (repo: string) => invoke<Overview>("overview", { repo }),
   detail: (repo: string, workspace: string) =>
     invoke<Detail>("detail", { repo, workspace }),

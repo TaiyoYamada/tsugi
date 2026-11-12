@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Diff } from "@/bindings/Diff";
 import { type LineKind, parsePatch } from "@/lib/patch";
@@ -30,6 +31,7 @@ type Props = {
 };
 
 export function DiffView({ diff, empty }: Props) {
+  const { t } = useTranslation();
   const files = useMemo(() => parsePatch(diff.patch), [diff.patch]);
 
   if (files.length === 0) {
@@ -38,7 +40,7 @@ export function DiffView({ diff, empty }: Props) {
   return (
     <div className="flex flex-col gap-3 p-3">
       <p className="text-xs text-muted-foreground">
-        {diff.stat.files} file(s),{" "}
+        {t("diff.summary", { count: diff.stat.files })}{" "}
         <span className="text-emerald-600 dark:text-emerald-400">
           +{diff.stat.insertions}
         </span>{" "}

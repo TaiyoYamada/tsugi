@@ -7,6 +7,7 @@ import {
   UploadIcon,
 } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Conflict } from "@/bindings/Conflict";
 import type { Detail } from "@/bindings/Detail";
@@ -14,10 +15,12 @@ import type { Snapshot } from "@/bindings/Snapshot";
 import type { WorkspaceStatus } from "@/bindings/WorkspaceStatus";
 import { DiffView } from "@/components/DiffView";
 import { ConfirmDialog, PublishDialog } from "@/components/dialogs";
+import { ErrorNote } from "@/components/ErrorNote";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { api, errorMessage } from "@/lib/api";
-import { ago, shortBranch, shortId } from "@/lib/format";
+import { api } from "@/lib/api";
+import { shortBranch, shortId } from "@/lib/format";
+import { useAgo } from "@/lib/text";
 import { cn } from "@/lib/utils";
 
 import type { Run } from "./Main";
@@ -34,6 +37,7 @@ type Question = "sync" | "remove" | null;
 
 /** Everything about the selected workspace, and the actions on it. */
 export function DetailPane({ repo, status, conflicts, busy, run }: Props) {
+  const { t } = useTranslation();
   const [question, setQuestion] = useState<Question>(null);
   const [publishing, setPublishing] = useState(false);
   const onBase = status.branch === `refs/heads/${status.base}`;
@@ -51,7 +55,7 @@ export function DetailPane({ repo, status, conflicts, busy, run }: Props) {
         <div className="min-w-0">
           <h2 className="truncate font-medium">{status.name}</h2>
           <p className="truncate text-xs text-muted-foreground">
-            {status.branch ? shortBranch(status.branch) : "detached"}
+            {status.branch ? shortBranch(status.branch) : t("detail.detached")}
             {!onBase && ` → ${status.base}`}
           </p>
         </div>
@@ -64,14 +68,15 @@ export function DetailPane({ repo, status, conflicts, busy, run }: Props) {
               run(
                 () => api.snapshot(repo, status.id),
                 (outcome) =>
-                  outcome.created
-                    ? `Snapshot ${outcome.snapshot.seq} of ${status.name}`
-                    : `${status.name} has not changed since snapshot ${outcome.snapshot.seq}`,
+                  t(outcome.created ? "toast.snapshotTaken" : "toast.unchanged", {
+                    name: status.name,
+                    seq: outcome.snapshot.seq,
+                  }),
               )
             }
           >
             <CameraIcon />
-            Snapshot
+            {t("detail.snapshot")}
           </Button>
           <Button
             variant="outline"
@@ -80,7 +85,7 @@ export function DetailPane({ repo, status, conflicts, busy, run }: Props) {
             onClick={() => setQuestion("sync")}
           >
             <GitMergeIcon />
-            Sync
+            {t("detail.sync")}
           </Button>
           <Button
             size="sm"
@@ -88,12 +93,12 @@ export function DetailPane({ repo, status, conflicts, busy, run }: Props) {
             onClick={() => setPublishing(true)}
           >
             <UploadIcon />
-            Publish
+            {t("detail.publish")}
           </Button>
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label={`Remove ${status.name}`}
+            aria-label={t("detail.remove", { name: status.name })}
             disabled={busy || status.is_main}
             onClick={() => setQuestion("remove")}
           >
@@ -104,30 +109,28 @@ export function DetailPane({ repo, status, conflicts, busy, run }: Props) {
 
       <Tabs defaultValue="changes" className="min-h-0 flex-1 gap-0">
         <TabsList variant="line" className="mx-4 mt-2">
-          <TabsTrigger value="changes">Changes</TabsTrigger>
+          <TabsTrigger value="changes">{t("detail.changes")}</TabsTrigger>
           <TabsTrigger value="snapshots">
-            Snapshots
-            {detail.data && ` (${detail.data.snapshots.length})`}
+            {detail.data
+              ? t("detail.snapshotsCount", {
+                  count: detail.data.snapshots.length,
+                })
+              : t("detail.snapshots")}
           </TabsTrigger>
-          <TabsTrigger value="info">Info</TabsTrigger>
+          <TabsTrigger value="info">{t("detail.info")}</TabsTrigger>
         </TabsList>
 
-        {detail.error && (
-          <p role="alert" className="p-6 text-sm text-destructive">
-            {errorMessage(detail.error)}
-          </p>
-        )}
+        {detail.error && <ErrorNote error={detail.error} className="p-6" />}
         <TabsContent value="changes" className="min-h-0 overflow-y-auto">
           {detail.data &&
             (detail.data.diff ? (
               <DiffView
                 diff={detail.data.diff}
-                empty={`No changes since ${status.base}.`}
+                empty={t("detail.noChanges", { base: status.base })}
               />
             ) : (
               <p className="p-6 text-sm text-muted-foreground">
-                Nothing to compare with: the base branch {status.base} does
-                not exist or shares no history with this workspace.
+                {t("detail.nothingToCompare", { base: status.base })}
               </p>
             ))}
         </TabsContent>
@@ -150,27 +153,27 @@ export function DetailPane({ repo, status, conflicts, busy, run }: Props) {
       <ConfirmDialog
         open={question === "sync"}
         onOpenChange={(open) => !open && setQuestion(null)}
-        title={`Merge ${status.base} into ${status.name}?`}
-        description={`The files of the workspace receive what happened on ${status.base}, and its branch moves on top of it. A snapshot is taken first.`}
-        confirmLabel="Sync"
+        title={t("detail.syncTitle", { base: status.base, name: status.name })}
+        description={t("detail.syncDescription", { base: status.base })}
+        confirmLabel={t("detail.sync")}
         onConfirm={() =>
           run(
             () => api.workspaceSync(repo, status.id),
-            () => `${status.name} now sits on ${status.base}`,
+            () => t("toast.synced", { name: status.name, base: status.base }),
           )
         }
       />
       <ConfirmDialog
         open={question === "remove"}
         onOpenChange={(open) => !open && setQuestion(null)}
-        title={`Remove ${status.name}?`}
-        description="The worktree is deleted. Its content stays available as a snapshot until the snapshot expires, and Undo brings the workspace back."
-        confirmLabel="Remove"
+        title={t("detail.removeTitle", { name: status.name })}
+        description={t("detail.removeDescription")}
+        confirmLabel={t("detail.removeConfirm")}
         destructive
         onConfirm={() =>
           run(
             () => api.workspaceRemove(repo, status.id),
-            () => `Removed ${status.name}`,
+            () => t("toast.removed", { name: status.name }),
           )
         }
       />
@@ -182,7 +185,11 @@ export function DetailPane({ repo, status, conflicts, busy, run }: Props) {
           run(
             () => api.publish(repo, status.id, message, verify),
             (outcome) =>
-              `Published ${status.name} to ${outcome.base} as ${shortId(outcome.commit)}`,
+              t("toast.published", {
+                name: status.name,
+                base: outcome.base,
+                commit: shortId(outcome.commit),
+              }),
           )
         }
       />
@@ -199,6 +206,8 @@ type SnapshotsProps = {
 };
 
 function SnapshotsTab({ repo, status, detail, busy, run }: SnapshotsProps) {
+  const { t } = useTranslation();
+  const ago = useAgo();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<Snapshot | null>(null);
   const latest = detail.snapshots[0];
@@ -215,7 +224,9 @@ function SnapshotsTab({ repo, status, detail, busy, run }: SnapshotsProps) {
 
   if (!selected) {
     return (
-      <p className="p-6 text-sm text-muted-foreground">No snapshots yet.</p>
+      <p className="p-6 text-sm text-muted-foreground">
+        {t("snapshots.none")}
+      </p>
     );
   }
   return (
@@ -249,11 +260,11 @@ function SnapshotsTab({ repo, status, detail, busy, run }: SnapshotsProps) {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center gap-3 border-b px-4 py-2 text-sm">
           <p className="min-w-0 truncate">
-            Snapshot {selected.seq}
+            {t("snapshots.title", { seq: selected.seq })}
             <span className="text-muted-foreground">
               {" "}
               · {ago(selected.created_at)} ·{" "}
-              {selected.head ? shortId(selected.head) : "no commit"}
+              {selected.head ? shortId(selected.head) : t("snapshots.noCommit")}
             </span>
           </p>
           <Button
@@ -264,14 +275,14 @@ function SnapshotsTab({ repo, status, detail, busy, run }: SnapshotsProps) {
             onClick={() => setRestoring(selected)}
           >
             <RotateCcwIcon />
-            Restore
+            {t("snapshots.restore")}
           </Button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           {since.data && (
             <DiffView
               diff={since.data}
-              empty="This is the current state of the workspace."
+              empty={t("snapshots.isCurrent")}
             />
           )}
         </div>
@@ -280,16 +291,23 @@ function SnapshotsTab({ repo, status, detail, busy, run }: SnapshotsProps) {
       <ConfirmDialog
         open={restoring !== null}
         onOpenChange={(open) => !open && setRestoring(null)}
-        title={`Restore ${status.name} to snapshot ${restoring?.seq}?`}
-        description="The files and the branch of the workspace go back to the snapshot. The current state is kept as a snapshot of its own, so this can be undone."
-        confirmLabel="Restore"
+        title={t("snapshots.restoreTitle", {
+          name: status.name,
+          seq: restoring?.seq,
+        })}
+        description={t("snapshots.restoreDescription")}
+        confirmLabel={t("snapshots.restore")}
         onConfirm={() => {
           const target = restoring;
           if (!target) return;
           run(
             () => api.restore(repo, status.id, target.id),
             (outcome) =>
-              `Restored ${status.name} to snapshot ${target.seq}; the state before is snapshot ${outcome.previous.seq}`,
+              t("toast.restored", {
+                name: status.name,
+                seq: target.seq,
+                previous: outcome.previous.seq,
+              }),
           );
         }}
       />
@@ -304,16 +322,19 @@ function InfoTab({
   status: WorkspaceStatus;
   conflicts: Conflict[];
 }) {
+  const { t } = useTranslation();
+  const ago = useAgo();
   const fields: [string, string][] = [
-    ["Path", status.path],
-    ["Branch", status.branch ? shortBranch(status.branch) : "detached"],
-    ["Base", status.base],
-    ["Task", status.task?.title ?? "none"],
+    [t("info.path"), status.path],
     [
-      "Changes",
-      status.changes
-        ? `${status.changes.files} file(s), +${status.changes.insertions} -${status.changes.deletions}`
-        : "unknown",
+      t("info.branch"),
+      status.branch ? shortBranch(status.branch) : t("detail.detached"),
+    ],
+    [t("info.base"), status.base],
+    [t("info.task"), status.task?.title ?? t("info.none")],
+    [
+      t("info.changes"),
+      status.changes ? t("info.changesValue", status.changes) : t("info.unknown"),
     ],
   ];
   return (
@@ -329,15 +350,18 @@ function InfoTab({
 
       {conflicts.length > 0 && (
         <section>
-          <h3 className="mb-1 font-medium text-destructive">Conflicts</h3>
+          <h3 className="mb-1 font-medium text-destructive">
+            {t("info.conflicts")}
+          </h3>
           <ul className="flex flex-col gap-1">
             {conflicts.map((conflict) => (
               <li key={`${conflict.workspace}/${conflict.other}`}>
-                with{" "}
-                {conflict.workspace === status.name
-                  ? conflict.other
-                  : conflict.workspace}
-                :{" "}
+                {t("info.conflictWith", {
+                  other:
+                    conflict.workspace === status.name
+                      ? conflict.other
+                      : conflict.workspace,
+                })}{" "}
                 <span className="font-mono text-xs">
                   {conflict.files.join(", ")}
                 </span>
@@ -348,11 +372,9 @@ function InfoTab({
       )}
 
       <section>
-        <h3 className="mb-1 font-medium">Agents</h3>
+        <h3 className="mb-1 font-medium">{t("info.agents")}</h3>
         {status.sessions.length === 0 && (
-          <p className="text-muted-foreground">
-            No agent session was found for this workspace.
-          </p>
+          <p className="text-muted-foreground">{t("info.noSession")}</p>
         )}
         <ul className="flex flex-col gap-3">
           {status.sessions.map((session) => (
@@ -366,7 +388,7 @@ function InfoTab({
                       : "text-emerald-600 dark:text-emerald-400"
                   }
                 >
-                  {session.state}
+                  {t(`session.${session.state}`)}
                 </span>{" "}
                 <span className="text-muted-foreground">
                   · {ago(session.updated_at)}

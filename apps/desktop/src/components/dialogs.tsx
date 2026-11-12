@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, type ReactNode, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Overview } from "@/bindings/Overview";
 import type { WorkspaceStatus } from "@/bindings/WorkspaceStatus";
@@ -15,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
-import { ago } from "@/lib/format";
+import { useAgo } from "@/lib/text";
 
 type DialogProps = {
   open: boolean;
@@ -40,6 +41,7 @@ export function ConfirmDialog({
   destructive = false,
   onConfirm,
 }: ConfirmProps) {
+  const { t } = useTranslation();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -49,7 +51,7 @@ export function ConfirmDialog({
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             variant={destructive ? "destructive" : "default"}
@@ -87,6 +89,7 @@ export function NewWorkspaceDialog({
   overview,
   onCreate,
 }: NewWorkspaceProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState("");
   const [task, setTask] = useState(NO_TASK);
   const [title, setTitle] = useState("");
@@ -115,55 +118,53 @@ export function NewWorkspaceDialog({
       <DialogContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>New workspace</DialogTitle>
-            <DialogDescription>
-              A worktree next to the repository, on its own branch.
-            </DialogDescription>
+            <DialogTitle>{t("newWorkspace.title")}</DialogTitle>
+            <DialogDescription>{t("newWorkspace.description")}</DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="workspace-name">Name</Label>
+            <Label htmlFor="workspace-name">{t("newWorkspace.name")}</Label>
             <Input
               id="workspace-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="login-fix"
               pattern="[a-z0-9][a-z0-9._\-]*"
-              title="Lowercase letters, digits, `.`, `_` and `-`"
+              title={t("newWorkspace.nameRule")}
               required
               autoFocus
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="workspace-task">Task</Label>
+            <Label htmlFor="workspace-task">{t("newWorkspace.task")}</Label>
             <select
               id="workspace-task"
               value={task}
               onChange={(event) => setTask(event.target.value)}
               className="h-8 rounded-md border bg-transparent px-2 text-sm"
             >
-              <option value={NO_TASK}>No task</option>
+              <option value={NO_TASK}>{t("newWorkspace.noTask")}</option>
               {openTasks.map((entry) => (
                 <option key={entry.id} value={entry.id}>
                   {entry.title}
                 </option>
               ))}
-              <option value={NEW_TASK}>New task…</option>
+              <option value={NEW_TASK}>{t("newWorkspace.newTask")}</option>
             </select>
             {task === NEW_TASK && (
               <Input
-                aria-label="Title of the new task"
+                aria-label={t("newWorkspace.newTaskTitle")}
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                placeholder="What should get done"
+                placeholder={t("newWorkspace.newTaskPlaceholder")}
                 required
               />
             )}
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="workspace-base">Base branch</Label>
+            <Label htmlFor="workspace-base">{t("newWorkspace.base")}</Label>
             <Input
               id="workspace-base"
               value={base}
@@ -178,9 +179,9 @@ export function NewWorkspaceDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
-            <Button type="submit">Create</Button>
+            <Button type="submit">{t("newWorkspace.create")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -199,6 +200,7 @@ export function PublishDialog({
   status,
   onPublish,
 }: PublishProps) {
+  const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [verify, setVerify] = useState(true);
   const fallback = status.task?.title ?? `Publish ${status.name}`;
@@ -216,16 +218,14 @@ export function PublishDialog({
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>
-              Publish {status.name} to {status.base}
+              {t("publish.title", { name: status.name, base: status.base })}
             </DialogTitle>
             <DialogDescription>
-              Everything in the workspace, committed or not, becomes one commit
-              on {status.base}. The commits made in the workspace stay out of
-              its history.
+              {t("publish.description", { base: status.base })}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="publish-message">Commit message</Label>
+            <Label htmlFor="publish-message">{t("publish.message")}</Label>
             <Input
               id="publish-message"
               value={message}
@@ -240,7 +240,7 @@ export function PublishDialog({
               checked={verify}
               onChange={(event) => setVerify(event.target.checked)}
             />
-            Run the verification commands of tsugi.toml first
+            {t("publish.verify")}
           </label>
           <DialogFooter>
             <Button
@@ -248,9 +248,9 @@ export function PublishDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t("common.cancel")}
             </Button>
-            <Button type="submit">Publish</Button>
+            <Button type="submit">{t("publish.submit")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -270,6 +270,8 @@ export function OperationsDialog({
   repo,
   onUndo,
 }: OperationsProps) {
+  const { t } = useTranslation();
+  const ago = useAgo();
   const operations = useQuery({
     queryKey: ["operations", repo],
     queryFn: () => api.operations(repo, 50),
@@ -284,15 +286,12 @@ export function OperationsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Operations</DialogTitle>
-          <DialogDescription>
-            Every change tsugi made to this repository. The most recent
-            finished operation can be undone.
-          </DialogDescription>
+          <DialogTitle>{t("operations.title")}</DialogTitle>
+          <DialogDescription>{t("operations.description")}</DialogDescription>
         </DialogHeader>
         <ul className="max-h-96 divide-y overflow-y-auto rounded-lg border text-sm">
           {operations.data?.length === 0 && (
-            <li className="p-3 text-muted-foreground">No operations yet.</li>
+            <li className="p-3 text-muted-foreground">{t("operations.empty")}</li>
           )}
           {operations.data?.map((operation) => (
             <li key={operation.id} className="flex items-baseline gap-3 px-3 py-2">
@@ -302,7 +301,9 @@ export function OperationsDialog({
               <span className="w-24 shrink-0 font-mono text-xs">
                 {operation.detail.kind}
               </span>
-              <span className="w-16 shrink-0 text-xs">{operation.state}</span>
+              <span className="w-20 shrink-0 text-xs">
+                {t(`operations.${operation.state}`)}
+              </span>
               <span className="min-w-0 flex-1 text-xs text-muted-foreground">
                 {operation.note}
               </span>
@@ -314,7 +315,7 @@ export function OperationsDialog({
         </ul>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Close
+            {t("common.close")}
           </Button>
           <Button
             disabled={!undoable}
@@ -324,8 +325,11 @@ export function OperationsDialog({
             }}
           >
             {undoable
-              ? `Undo #${undoable.id} (${undoable.detail.kind})`
-              : "Nothing to undo"}
+              ? t("operations.undo", {
+                  id: undoable.id,
+                  kind: undoable.detail.kind,
+                })
+              : t("operations.nothingToUndo")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -29,6 +29,10 @@ VITE_MOCK=1 pnpm dev   # the screens in a browser, with fake data
 cargo test --package tsugi-desktop   # needs `pnpm build` once
 ```
 
+The texts of the desktop app are in `apps/desktop/src/i18n/en.ts` and
+`ja.ts`. A text that is added to one has to be added to the other; the type
+check fails otherwise.
+
 ## Layout
 
 ```

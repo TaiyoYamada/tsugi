@@ -117,9 +117,15 @@ pnpm install
 pnpm tauri build
 ```
 
-The app shows the same things as the terminal app in a window and runs the
-watcher itself while a repository is open. `tsugi-desktop <dir>` opens a
-repository directly.
+The app shows the same things as the terminal app in a window, for several
+repositories at once. The repositories you opened are listed on the left,
+each with the number of agents at work and of conflicts in it, so that
+something that happens in a repository that is not on screen is noticed.
+The app runs the watcher for every repository on the list.
+`tsugi-desktop <dir>` adds a repository directly.
+
+The app is in English and Japanese, and light or dark. Both follow the
+system unless they are set in the settings (the gear button).
 
 ## What tsugi writes, and how to remove it
 

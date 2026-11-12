@@ -1,0 +1,182 @@
+// The English texts of the app. `ja.ts` has the same keys; the compiler
+// rejects a translation that misses one.
+
+export const en = {
+  common: {
+    cancel: "Cancel",
+    close: "Close",
+  },
+  time: {
+    justNow: "just now",
+    minutesAgo: "{{count}}m ago",
+    hoursAgo: "{{count}}h ago",
+    daysAgo: "{{count}}d ago",
+  },
+  picker: {
+    tagline:
+      "Every workspace of a repository, and what the agents in them are doing.",
+    open: "Open a repository",
+    recent: "Recent",
+    setUpTitle: "Set tsugi up in this repository?",
+    setUpDescription:
+      "tsugi keeps its data inside the .git directory and in refs under refs/tsugi/. The repository stays an ordinary Git repository, and `tsugi uninstall` removes everything again.",
+    setUp: "Set up",
+  },
+  header: {
+    watching: "Watching",
+    notWatching: "Not watching",
+    watchingHint: "Snapshots are taken as files change. Click to stop.",
+    notWatchingHint: "Snapshots are only taken on demand. Click to watch.",
+    operations: "Operations",
+    newWorkspace: "New workspace",
+    settings: "Settings",
+  },
+  rail: {
+    title: "Repositories",
+    add: "Add a repository",
+    remove: "Take {{name}} off the list",
+    workspaces: "{{count}} workspace(s)",
+    working: "{{count}} working",
+    conflicts: "{{count}} conflict(s)",
+    unavailable: "cannot be opened",
+  },
+  list: {
+    noTask: "No task",
+    mainWorktree: "main",
+    conflict: "conflict",
+    conflicts: "Conflicts",
+    isBase: "(base)",
+    agentState: "{{agent}}: {{state}}",
+    noSession: "no agent session found",
+  },
+  session: {
+    working: "working",
+    idle: "idle",
+  },
+  detail: {
+    detached: "detached",
+    snapshot: "Snapshot",
+    sync: "Sync",
+    publish: "Publish",
+    remove: "Remove {{name}}",
+    changes: "Changes",
+    snapshots: "Snapshots",
+    snapshotsCount: "Snapshots ({{count}})",
+    info: "Info",
+    noChanges: "No changes since {{base}}.",
+    nothingToCompare:
+      "Nothing to compare with: the base branch {{base}} does not exist or shares no history with this workspace.",
+    syncTitle: "Merge {{base}} into {{name}}?",
+    syncDescription:
+      "The files of the workspace receive what happened on {{base}}, and its branch moves on top of it. A snapshot is taken first.",
+    removeTitle: "Remove {{name}}?",
+    removeDescription:
+      "The worktree is deleted. Its content stays available as a snapshot until the snapshot expires, and Undo brings the workspace back.",
+    removeConfirm: "Remove",
+  },
+  diff: {
+    summary: "{{count}} file(s),",
+  },
+  snapshots: {
+    none: "No snapshots yet.",
+    title: "Snapshot {{seq}}",
+    noCommit: "no commit",
+    restore: "Restore",
+    isCurrent: "This is the current state of the workspace.",
+    restoreTitle: "Restore {{name}} to snapshot {{seq}}?",
+    restoreDescription:
+      "The files and the branch of the workspace go back to the snapshot. The current state is kept as a snapshot of its own, so this can be undone.",
+  },
+  info: {
+    path: "Path",
+    branch: "Branch",
+    base: "Base",
+    task: "Task",
+    changes: "Changes",
+    none: "none",
+    unknown: "unknown",
+    changesValue: "{{files}} file(s), +{{insertions}} -{{deletions}}",
+    conflicts: "Conflicts",
+    conflictWith: "with {{other}}:",
+    agents: "Agents",
+    noSession: "No agent session was found for this workspace.",
+  },
+  newWorkspace: {
+    title: "New workspace",
+    description: "A worktree next to the repository, on its own branch.",
+    name: "Name",
+    nameRule: "Lowercase letters, digits, `.`, `_` and `-`",
+    task: "Task",
+    noTask: "No task",
+    newTask: "New task…",
+    newTaskTitle: "Title of the new task",
+    newTaskPlaceholder: "What should get done",
+    base: "Base branch",
+    create: "Create",
+  },
+  publish: {
+    title: "Publish {{name}} to {{base}}",
+    description:
+      "Everything in the workspace, committed or not, becomes one commit on {{base}}. The commits made in the workspace stay out of its history.",
+    message: "Commit message",
+    verify: "Run the verification commands of tsugi.toml first",
+    submit: "Publish",
+  },
+  operations: {
+    title: "Operations",
+    description:
+      "Every change tsugi made to this repository. The most recent finished operation can be undone.",
+    empty: "No operations yet.",
+    undo: "Undo #{{id}} ({{kind}})",
+    nothingToUndo: "Nothing to undo",
+    started: "running",
+    done: "done",
+    failed: "failed",
+    undone: "undone",
+  },
+  settings: {
+    title: "Settings",
+    language: "Language",
+    appearance: "Appearance",
+    system: "System",
+    light: "Light",
+    dark: "Dark",
+  },
+  toast: {
+    snapshotTaken: "Snapshot {{seq}} of {{name}}",
+    unchanged: "{{name}} has not changed since snapshot {{seq}}",
+    synced: "{{name}} now sits on {{base}}",
+    removed: "Removed {{name}}",
+    published: "Published {{name}} to {{base}} as {{commit}}",
+    restored:
+      "Restored {{name}} to snapshot {{seq}}; the state before is snapshot {{previous}}",
+    created: "Created {{name}}",
+    undone: "Undid operation #{{id}} ({{kind}})",
+  },
+  // One sentence per error code of the Rust side. The message that comes
+  // with the error has the details and is written in English.
+  errors: {
+    not_a_repository: "This folder is not inside a Git repository.",
+    bare_repository: "Bare repositories are not supported.",
+    not_initialized: "tsugi is not set up in this repository.",
+    git_too_old: "The installed Git is too old.",
+    workspace_not_found: "The workspace does not exist any more.",
+    snapshot_not_found: "The snapshot does not exist any more.",
+    task_not_found: "The task does not exist.",
+    name_taken: "The name is already in use.",
+    invalid_name: "The name cannot be used.",
+    conflict: "The merge has conflicts. Nothing was changed.",
+    verify_failed: "Verification failed. The base branch was not changed.",
+    nothing_to_publish: "There is nothing to publish.",
+    nothing_to_undo: "There is nothing to undo.",
+    refused: "The request was refused. Nothing was changed.",
+    git_failed: "A git command failed.",
+    invalid_config: "tsugi.toml cannot be used.",
+    io: "A file could not be read or written.",
+    database: "The database could not be read or written.",
+    json: "Stored data could not be read.",
+    unknown: "Something went wrong.",
+  },
+};
+
+export type Messages = typeof en;

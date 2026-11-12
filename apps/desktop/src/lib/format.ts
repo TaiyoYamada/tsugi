@@ -1,10 +1,14 @@
-/** `just now`, `3m ago`, `2h ago`, `5d ago`. `timestamp` is Unix seconds. */
-export function ago(timestamp: number, now: number = Date.now() / 1000): string {
+export type Age =
+  | { unit: "now" }
+  | { unit: "minutes" | "hours" | "days"; count: number };
+
+/** How long ago `timestamp` (Unix seconds) was, in the largest whole unit. */
+export function age(timestamp: number, now: number = Date.now() / 1000): Age {
   const seconds = Math.max(0, Math.floor(now - timestamp));
-  if (seconds < 60) return "just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  return `${Math.floor(seconds / 86400)}d ago`;
+  if (seconds < 60) return { unit: "now" };
+  if (seconds < 3600) return { unit: "minutes", count: Math.floor(seconds / 60) };
+  if (seconds < 86400) return { unit: "hours", count: Math.floor(seconds / 3600) };
+  return { unit: "days", count: Math.floor(seconds / 86400) };
 }
 
 export function shortId(id: string): string {

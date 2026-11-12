@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { EyeIcon, EyeOffIcon, HistoryIcon, PlusIcon, XIcon } from "lucide-react";
+import { EyeIcon, EyeOffIcon, HistoryIcon, PlusIcon } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { Outcome } from "@/bindings/Outcome";
@@ -10,14 +11,16 @@ import {
   NewWorkspaceDialog,
   OperationsDialog,
 } from "@/components/dialogs";
+import { ErrorNote } from "@/components/ErrorNote";
 import { Button } from "@/components/ui/button";
 import {
   ConflictPanel,
   WorkspaceList,
   conflictsOf,
 } from "@/components/WorkspaceList";
-import { api, errorMessage } from "@/lib/api";
+import { api } from "@/lib/api";
 import { baseName } from "@/lib/format";
+import { useErrorText } from "@/lib/text";
 
 /** How often the state of the workspaces is read again. */
 const REFRESH_MS = 2000;
@@ -33,10 +36,12 @@ export type Run = <T>(
 
 type Props = {
   repo: string;
-  onClose: () => void;
 };
 
-export function Main({ repo, onClose }: Props) {
+/** One repository: its workspaces, and the detail of the selected one. */
+export function Main({ repo }: Props) {
+  const { t } = useTranslation();
+  const errorText = useErrorText();
   const queryClient = useQueryClient();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,6 +54,11 @@ export function Main({ repo, onClose }: Props) {
     refetchInterval: REFRESH_MS,
   });
 
+  function reportError(error: unknown) {
+    const { summary, detail } = errorText(error);
+    toast.error(summary, { description: detail });
+  }
+
   const run: Run = (action, done) => {
     setBusy(true);
     action()
@@ -56,7 +66,7 @@ export function Main({ repo, onClose }: Props) {
         toast.success(done(outcome.value));
         for (const notice of outcome.notices) toast.info(notice);
       })
-      .catch((error: unknown) => toast.error(errorMessage(error)))
+      .catch(reportError)
       .finally(() => {
         setBusy(false);
         void queryClient.invalidateQueries();
@@ -83,19 +93,15 @@ export function Main({ repo, onClose }: Props) {
   function toggleWatching(on: boolean) {
     api
       .setWatching(repo, on)
-      .catch((error: unknown) => toast.error(errorMessage(error)))
+      .catch(reportError)
       .finally(() => void queryClient.invalidateQueries());
   }
 
   if (overview.error && !overview.data) {
     return (
-      <main className="flex h-screen flex-col items-center justify-center gap-4 p-8">
-        <p role="alert" className="max-w-lg text-center text-sm text-destructive">
-          {errorMessage(overview.error)}
-        </p>
-        <Button variant="outline" onClick={onClose}>
-          Choose another repository
-        </Button>
+      <main className="flex min-w-0 flex-1 flex-col items-center justify-center p-8">
+        <h1 className="mb-3 font-semibold">{baseName(repo)}</h1>
+        <ErrorNote error={overview.error} className="max-w-lg text-center" />
       </main>
     );
   }
@@ -106,7 +112,7 @@ export function Main({ repo, onClose }: Props) {
     statuses.find((status) => status.id === selectedId) ?? statuses[0];
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex min-w-0 flex-1 flex-col">
       <header className="flex items-center gap-2 border-b px-4 py-2">
         <div className="min-w-0">
           <h1 className="truncate font-semibold">{baseName(repo)}</h1>
@@ -117,14 +123,12 @@ export function Main({ repo, onClose }: Props) {
             variant="ghost"
             size="sm"
             title={
-              watching
-                ? "Snapshots are taken as files change. Click to stop."
-                : "Snapshots are only taken on demand. Click to watch."
+              watching ? t("header.watchingHint") : t("header.notWatchingHint")
             }
             onClick={() => toggleWatching(!watching)}
           >
             {watching ? <EyeIcon /> : <EyeOffIcon />}
-            {watching ? "Watching" : "Not watching"}
+            {watching ? t("header.watching") : t("header.notWatching")}
           </Button>
           <Button
             variant="ghost"
@@ -132,19 +136,11 @@ export function Main({ repo, onClose }: Props) {
             onClick={() => setShowingOperations(true)}
           >
             <HistoryIcon />
-            Operations
+            {t("header.operations")}
           </Button>
           <Button size="sm" disabled={busy} onClick={() => setCreating(true)}>
             <PlusIcon />
-            New workspace
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Close the repository"
-            onClick={onClose}
-          >
-            <XIcon />
+            {t("header.newWorkspace")}
           </Button>
         </div>
       </header>
@@ -179,7 +175,7 @@ export function Main({ repo, onClose }: Props) {
         onCreate={(workspace) =>
           run(
             () => create(workspace),
-            (created) => `Created ${created.name}`,
+            (created) => t("toast.created", { name: created.name }),
           )
         }
       />
@@ -190,7 +186,8 @@ export function Main({ repo, onClose }: Props) {
         onUndo={() =>
           run(
             () => api.undo(repo),
-            (undone) => `Undid operation #${undone.id} (${undone.detail.kind})`,
+            (undone) =>
+              t("toast.undone", { id: undone.id, kind: undone.detail.kind }),
           )
         }
       />
