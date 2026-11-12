@@ -49,6 +49,16 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/out"
           cp ../../target/universal-apple-darwin/release/bundle/dmg/*.dmg "$RUNNER_TEMP/out/tsugi-desktop-universal-apple-darwin.dmg"
+      # Tauri notarizes the app inside; the .dmg itself is notarized here so
+      # that Gatekeeper accepts the downloaded file as well.
+      - name: Notarize the .dmg
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          DMG="$RUNNER_TEMP/out/tsugi-desktop-universal-apple-darwin.dmg"
+          xcrun notarytool submit "$DMG" --key "$RUNNER_TEMP/AuthKey.p8" --key-id "$APPLE_API_KEY" --issuer "$APPLE_API_ISSUER" --wait
+          xcrun stapler staple "$DMG"
       - uses: actions/upload-artifact@v4
         with:
           name: artifacts-build-desktop

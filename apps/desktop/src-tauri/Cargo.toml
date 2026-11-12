@@ -18,7 +18,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tsugi-core = { path = "../../../crates/tsugi-core", version = "0.1.0", features = ["ts"] }
+tsugi-core = { path = "../../../crates/tsugi-core", version = "0.1.1", features = ["ts"] }
 tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }

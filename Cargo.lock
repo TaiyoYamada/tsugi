@@ -5025,7 +5025,7 @@ dependencies = [
 
 [[package]]
 name = "tsugi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "clap",
  "serde",
@@ -5037,7 +5037,7 @@ dependencies = [
 
 [[package]]
 name = "tsugi-core"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "notify",
  "proptest",
@@ -5053,7 +5053,7 @@ dependencies = [
 
 [[package]]
 name = "tsugi-desktop"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "serde",
  "serde_json",
@@ -5067,7 +5067,7 @@ dependencies = [
 
 [[package]]
 name = "tsugi-tui"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ratatui",
  "tsugi-core",
