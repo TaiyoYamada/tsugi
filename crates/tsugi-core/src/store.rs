@@ -122,9 +122,9 @@ impl Store {
     }
 
     pub fn tasks(&self) -> Result<Vec<Task>> {
-        let mut statement = self.db.prepare(
-            "SELECT id, title, created_at, closed_at FROM tasks ORDER BY created_at, id",
-        )?;
+        let mut statement = self
+            .db
+            .prepare("SELECT id, title, created_at, closed_at FROM tasks ORDER BY rowid")?;
         let rows = statement.query_map([], |row| {
             Ok(Task {
                 id: row.get(0)?,
@@ -176,7 +176,7 @@ impl Store {
     pub fn workspaces(&self) -> Result<Vec<Workspace>> {
         let mut statement = self.db.prepare(
             "SELECT id, name, task_id, path, base, origin, created_at, removed_at
-             FROM workspaces ORDER BY created_at, id",
+             FROM workspaces ORDER BY rowid",
         )?;
         let rows = statement.query_map([], workspace_from_row)?;
         Ok(rows.collect::<rusqlite::Result<_>>()?)

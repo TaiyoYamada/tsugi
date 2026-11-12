@@ -3,6 +3,7 @@
 use std::cell::RefCell;
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use crate::config::Config;
 use crate::error::{Error, Result};
@@ -28,9 +29,22 @@ pub struct Repo {
     pub(crate) notices: RefCell<Vec<String>>,
 }
 
+/// How long a command that only reads waits for the repository lock before
+/// it goes on without it.
+const BRIEF_WAIT: Duration = Duration::from_millis(300);
+
 /// Proof that the repository lock is held. Released when dropped.
 pub struct RepoLock {
-    _file: File,
+    file: File,
+}
+
+impl Drop for RepoLock {
+    fn drop(&mut self) {
+        // Closing the file is not enough: a git process started by another
+        // thread at this moment holds a copy of the descriptor until it
+        // calls exec, and the lock would stay taken that long.
+        let _ = self.file.unlock();
+    }
 }
 
 /// A Git worktree as reported by `git worktree list`.
@@ -119,16 +133,24 @@ impl Repo {
     pub(crate) fn lock(&self) -> Result<RepoLock> {
         let file = self.lock_file()?;
         file.lock()?;
-        Ok(RepoLock { _file: file })
+        Ok(RepoLock { file })
     }
 
-    /// Takes the repository lock if no other process holds it.
-    pub(crate) fn try_lock(&self) -> Result<Option<RepoLock>> {
+    /// Takes the repository lock unless another process keeps it for longer
+    /// than a moment. Snapshots take a moment; verification, which can take
+    /// minutes, runs without the lock.
+    pub(crate) fn lock_briefly(&self) -> Result<Option<RepoLock>> {
         let file = self.lock_file()?;
-        match file.try_lock() {
-            Ok(()) => Ok(Some(RepoLock { _file: file })),
-            Err(fs::TryLockError::WouldBlock) => Ok(None),
-            Err(fs::TryLockError::Error(error)) => Err(error.into()),
+        let deadline = Instant::now() + BRIEF_WAIT;
+        loop {
+            match file.try_lock() {
+                Ok(()) => return Ok(Some(RepoLock { file })),
+                Err(fs::TryLockError::WouldBlock) if Instant::now() < deadline => {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(fs::TryLockError::WouldBlock) => return Ok(None),
+                Err(fs::TryLockError::Error(error)) => return Err(error.into()),
+            }
         }
     }
 
@@ -149,9 +171,9 @@ impl Repo {
     }
 
     /// `settle` for commands that only read: skipped when another process
-    /// holds the lock, because that process has settled already.
+    /// is busy with the repository, because that process has settled already.
     pub(crate) fn try_settle(&self) -> Result<()> {
-        if let Some(lock) = self.try_lock()? {
+        if let Some(lock) = self.lock_briefly()? {
             self.settle(&lock)?;
         }
         Ok(())

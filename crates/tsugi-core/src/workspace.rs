@@ -366,7 +366,7 @@ impl Repo {
     /// State of every workspace. Takes a snapshot of each workspace first
     /// unless another process is busy with the repository.
     pub fn status(&self, home: Option<&Path>) -> Result<Vec<WorkspaceStatus>> {
-        let workspaces = match self.try_lock()? {
+        let workspaces = match self.lock_briefly()? {
             Some(lock) => {
                 self.settle(&lock)?;
                 let workspaces = self.workspaces()?;

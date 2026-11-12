@@ -14,7 +14,14 @@ use crate::repo::{Repo, RepoLock};
 pub(crate) struct Op {
     pub id: i64,
     lock_path: PathBuf,
-    _file: File,
+    file: File,
+}
+
+impl Drop for Op {
+    fn drop(&mut self) {
+        // See `RepoLock`: closing alone can leave the lock taken for a moment.
+        let _ = self.file.unlock();
+    }
 }
 
 impl Op {
@@ -45,7 +52,7 @@ impl Repo {
         Ok(Op {
             id,
             lock_path,
-            _file: file,
+            file,
         })
     }
 
