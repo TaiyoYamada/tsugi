@@ -55,8 +55,7 @@ pub(crate) fn snapshot_ref(workspace_id: &str, seq: u64) -> String {
 impl Repo {
     /// Takes a snapshot of a workspace unless nothing changed.
     pub fn snapshot(&self, workspace: &Workspace, trigger: Trigger) -> Result<SnapshotOutcome> {
-        let lock = self.lock()?;
-        self.settle(&lock)?;
+        let lock = self.lock_for(workspace)?;
         self.snapshot_locked(&lock, workspace, trigger)
     }
 
@@ -268,8 +267,7 @@ impl Repo {
 
     /// Puts a workspace back to a snapshot.
     pub fn restore(&self, workspace: &Workspace, target: &Snapshot) -> Result<RestoreOutcome> {
-        let lock = self.lock()?;
-        self.settle(&lock)?;
+        let lock = self.lock_for(workspace)?;
         let detail = OpDetail::Restore {
             workspace_id: workspace.id.clone(),
             target: target.id.clone(),

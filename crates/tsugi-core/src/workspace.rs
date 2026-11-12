@@ -159,8 +159,7 @@ impl Repo {
     /// Removes a workspace. Its content is kept as a snapshot until the
     /// snapshot expires.
     pub fn workspace_remove(&self, workspace: &Workspace) -> Result<Removal> {
-        let lock = self.lock()?;
-        self.settle(&lock)?;
+        let lock = self.lock_for(workspace)?;
         if workspace.path == self.main_root {
             return Err(Error::Refused(
                 "the main worktree cannot be removed".to_string(),
@@ -300,8 +299,7 @@ impl Repo {
     /// Merges the current base branch into a workspace and moves the
     /// workspace on top of it.
     pub fn workspace_sync(&self, workspace: &Workspace) -> Result<SyncOutcome> {
-        let lock = self.lock()?;
-        self.settle(&lock)?;
+        let lock = self.lock_for(workspace)?;
         let base_ref = format!("refs/heads/{}", workspace.base);
         let onto = self.git.commit(&base_ref)?.ok_or_else(|| {
             Error::Refused(format!(

@@ -12,6 +12,7 @@ use crate::fscopy::clone_path;
 use crate::git::split_nul;
 use crate::model::{OpDetail, Publication, Snapshot, Trigger, Verification, Workspace};
 use crate::repo::{Repo, failpoint};
+use crate::workspace::WorkspaceStatus;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct DiffStat {
@@ -174,7 +175,11 @@ impl Repo {
     /// Files that would conflict if two workspaces, or a workspace and its
     /// base branch, were merged now. Nothing is written to any worktree.
     pub fn conflicts(&self) -> Result<Vec<Conflict>> {
-        let statuses = self.status(None)?;
+        self.conflicts_among(&self.status(None)?)
+    }
+
+    /// `conflicts` for a caller that has the state of the workspaces already.
+    pub fn conflicts_among(&self, statuses: &[WorkspaceStatus]) -> Result<Vec<Conflict>> {
         let mut conflicts = Vec::new();
 
         for (index, status) in statuses.iter().enumerate() {
@@ -221,8 +226,7 @@ impl Repo {
         verify: bool,
     ) -> Result<PublishOutcome> {
         // Step 1, under the lock: snapshot, merge and build the commit.
-        let lock = self.lock()?;
-        self.settle(&lock)?;
+        let lock = self.lock_for(workspace)?;
         let base = workspace.base.clone();
         let base_ref = format!("refs/heads/{base}");
         let old_tip = self

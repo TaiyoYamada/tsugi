@@ -170,6 +170,22 @@ impl Repo {
         self.reconcile(lock)
     }
 
+    /// Takes the lock for a command that changes `workspace`, and makes sure
+    /// the workspace still exists: the caller may have looked it up before
+    /// another process removed it.
+    pub(crate) fn lock_for(&self, workspace: &Workspace) -> Result<RepoLock> {
+        let lock = self.lock()?;
+        self.settle(&lock)?;
+        let exists = self
+            .store
+            .workspace(&workspace.id)?
+            .is_some_and(|current| current.removed_at.is_none());
+        if !exists {
+            return Err(Error::WorkspaceNotFound(workspace.name.clone()));
+        }
+        Ok(lock)
+    }
+
     /// `settle` for commands that only read: skipped when another process
     /// is busy with the repository, because that process has settled already.
     pub(crate) fn try_settle(&self) -> Result<()> {
