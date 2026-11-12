@@ -280,7 +280,7 @@ fn uninstall_leaves_a_plain_repository() {
 
     let outcome = t.reopen().uninstall().unwrap();
     assert!(outcome.refs_deleted >= 2);
-    assert_eq!(outcome.worktrees, [ws.path.clone()]);
+    assert_eq!(outcome.worktrees, std::slice::from_ref(&ws.path));
     assert!(!state_dir.exists());
     assert_eq!(git(&t.root, &["for-each-ref", "refs/tsugi/"]), "");
     assert_eq!(read(&ws.path, "a.txt"), "a\n");

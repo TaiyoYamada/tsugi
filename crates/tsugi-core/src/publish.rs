@@ -64,13 +64,18 @@ pub struct PublishOutcome {
 }
 
 impl Repo {
-    /// What a workspace changed relative to its base branch, as of its
-    /// latest snapshot.
+    /// What a workspace changed since it left its base branch, as of now.
     pub fn diff_workspace(&self, workspace: &Workspace) -> Result<Diff> {
         let snapshot = self.snapshot(workspace, Trigger::Auto)?.snapshot;
-        let base = format!("refs/heads/{}", workspace.base);
-        let from = self.git.run(&["merge-base", &base, &snapshot.id])?;
+        let from = self.fork_point(workspace, &snapshot)?;
         self.diff(&from, &snapshot.id)
+    }
+
+    /// The commit where a snapshot and the base branch of its workspace
+    /// parted.
+    pub fn fork_point(&self, workspace: &Workspace, snapshot: &Snapshot) -> Result<String> {
+        let base = format!("refs/heads/{}", workspace.base);
+        self.git.run(&["merge-base", &base, &snapshot.id])
     }
 
     /// The difference between two commits or trees.

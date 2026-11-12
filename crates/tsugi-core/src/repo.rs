@@ -318,6 +318,45 @@ impl Repo {
             .collect())
     }
 
+    /// Adopts new worktrees, retires workspaces whose worktree is gone, and
+    /// returns the workspaces that exist.
+    pub fn refresh(&self) -> Result<Vec<Workspace>> {
+        self.try_settle()?;
+        self.workspaces()
+    }
+
+    /// Turns any text, such as the title of a task, into a workspace name
+    /// that is valid and not in use.
+    pub fn suggest_name(&self, text: &str) -> Result<String> {
+        Ok(unique_name(&sanitize_name(text), &self.workspaces()?))
+    }
+
+    /// The Git directory of a workspace: `.git` for the main worktree,
+    /// `.git/worktrees/<name>` for the others.
+    pub fn git_dir(&self, workspace: &Workspace) -> Result<PathBuf> {
+        let dir = self
+            .git
+            .at(&workspace.path)
+            .run(&["rev-parse", "--absolute-git-dir"])?;
+        Ok(fs::canonicalize(dir)?)
+    }
+
+    /// True when every one of `paths`, which are inside the workspace, is
+    /// ignored by Git and therefore cannot change a snapshot.
+    pub fn all_ignored(&self, workspace: &Workspace, paths: &[PathBuf]) -> Result<bool> {
+        let mut input = Vec::new();
+        for path in paths {
+            input.extend_from_slice(path.to_string_lossy().as_bytes());
+            input.push(0);
+        }
+        let output = self
+            .git
+            .at(&workspace.path)
+            .output(&["check-ignore", "--stdin", "-z"], Some(&input))?;
+        // Prints the paths that are ignored; exits with 1 when none is.
+        Ok(git::split_nul(&output.stdout).len() == paths.len())
+    }
+
     /// Finds a workspace by name, by id, or by a prefix of its id.
     pub fn workspace(&self, selector: &str) -> Result<Workspace> {
         let active = self.workspaces()?;
@@ -477,11 +516,12 @@ pub(crate) fn unique_name(wanted: &str, taken: &[Workspace]) -> String {
         .expect("an unused number exists")
 }
 
-/// Stops the process when the environment asks for it. The tests use this to
-/// interrupt an operation at a chosen step.
+/// Ends the process on the spot when the environment asks for it. The tests
+/// use this to interrupt an operation at a chosen step. `exit` runs no
+/// destructors, so nothing is cleaned up, exactly as after a crash.
 pub(crate) fn failpoint(name: &str) {
     if std::env::var("TSUGI_FAILPOINT").is_ok_and(|wanted| wanted == name) {
-        std::process::abort();
+        std::process::exit(70);
     }
 }
 
