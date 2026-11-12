@@ -231,7 +231,7 @@ fn sync_stops_on_conflict_without_changing_anything() {
 
 #[test]
 fn gc_deletes_old_snapshots_but_never_the_latest_of_a_live_workspace() {
-    let t = TestRepo::with_config("[snapshot]\nkeep_days = 0\n");
+    let t = TestRepo::with_config("[snapshot]\nkeep_days = 2\n");
     let main = t.main();
     let ws = t.repo.workspace_new("temp", None, None).unwrap();
     for content in ["1\n", "2\n", "3\n"] {
@@ -240,10 +240,14 @@ fn gc_deletes_old_snapshots_but_never_the_latest_of_a_live_workspace() {
     }
     write(&ws.path, "b.txt", "b\n");
     t.repo.workspace_remove(&ws).unwrap();
-    // `keep_days = 0` keeps what was made in the current second.
-    std::thread::sleep(std::time::Duration::from_millis(1100));
+    let taken = t.repo.snapshots(&main).unwrap()[0].created_at;
+    const DAY: i64 = 24 * 60 * 60;
 
-    let outcome = t.repo.gc().unwrap();
+    // One day later everything is still there.
+    assert_eq!(t.repo.gc_at(taken + DAY).unwrap().deleted, 0);
+
+    // Three days later only the latest snapshot of the live workspace is.
+    let outcome = t.repo.gc_at(taken + 3 * DAY).unwrap();
     assert_eq!(outcome.kept, 1);
     let left = t.repo.snapshots(&main).unwrap();
     assert_eq!(left.len(), 1);
@@ -268,6 +272,53 @@ fn gc_deletes_old_snapshots_but_never_the_latest_of_a_live_workspace() {
             .seq,
         4
     );
+}
+
+#[test]
+fn gc_thins_automatic_snapshots_that_are_older_than_an_hour() {
+    let t = TestRepo::new();
+    let main = t.main();
+    // Three automatic snapshots, one on request, two more automatic ones,
+    // all within the same seconds.
+    let triggers = [
+        Trigger::Watch,
+        Trigger::Auto,
+        Trigger::Watch,
+        Trigger::Manual,
+        Trigger::PreRestore,
+        Trigger::Watch,
+        Trigger::Auto,
+    ];
+    for (index, trigger) in triggers.into_iter().enumerate() {
+        write(&t.root, "a.txt", &format!("{index}\n"));
+        t.repo.snapshot(&main, trigger).unwrap();
+    }
+    let taken = t.repo.snapshots(&main).unwrap()[0].created_at;
+    // The test may cross a ten-minute boundary of the clock while it takes
+    // the snapshots; then one more automatic snapshot is kept.
+    let periods = {
+        let snapshots = t.repo.snapshots(&main).unwrap();
+        let mut periods: Vec<i64> = snapshots
+            .iter()
+            .filter(|s| matches!(s.trigger, Trigger::Watch | Trigger::Auto))
+            .map(|s| s.created_at / 600)
+            .collect();
+        periods.dedup();
+        periods.len()
+    };
+
+    // Within the hour nothing is thinned.
+    assert_eq!(t.repo.gc_at(taken + 30 * 60).unwrap().deleted, 0);
+
+    t.repo.gc_at(taken + 2 * 60 * 60).unwrap();
+    let left = t.repo.snapshots(&main).unwrap();
+    let kept: Vec<(u64, Trigger)> = left.iter().map(|s| (s.seq, s.trigger)).collect();
+    // The newest automatic snapshot of the period, and everything that was
+    // asked for or taken before an operation.
+    assert!(kept.contains(&(7, Trigger::Auto)));
+    assert!(kept.contains(&(5, Trigger::PreRestore)));
+    assert!(kept.contains(&(4, Trigger::Manual)));
+    assert_eq!(kept.len(), 2 + periods);
 }
 
 #[test]

@@ -7,9 +7,15 @@ use std::time::Duration;
 use serde::Serialize;
 
 use crate::error::Result;
+use crate::model::Trigger;
 use crate::repo::Repo;
 use crate::snapshot::{latest_ref, snapshot_ref};
 use crate::store::now;
+
+/// Every automatic snapshot of the last hour is kept...
+const KEEP_ALL_FOR: i64 = 60 * 60;
+/// ...and of the older ones, one per ten minutes. Both in seconds.
+const THIN_TO_ONE_PER: i64 = 10 * 60;
 
 /// Temporary files live for milliseconds; one this old belongs to no process.
 const STALE_TEMP_FILE: Duration = Duration::from_secs(60 * 60);
@@ -31,12 +37,26 @@ pub struct UninstallOutcome {
 }
 
 impl Repo {
-    /// Deletes snapshots older than `snapshot.keep_days`. The latest snapshot
-    /// of a workspace that still exists is always kept.
+    /// Deletes snapshots that are no longer needed.
+    ///
+    /// - Snapshots older than `snapshot.keep_days` are deleted.
+    /// - Of the snapshots taken automatically (`watch`, `auto`) more than an
+    ///   hour ago, the last one of every ten minutes is kept. An agent at
+    ///   work produces a snapshot every few seconds; that detail matters
+    ///   for the last hour, not for last week.
+    /// - The latest snapshot of a workspace that still exists is always
+    ///   kept, and so is every snapshot taken on request or before an
+    ///   operation, until it is older than `snapshot.keep_days`.
     pub fn gc(&self) -> Result<GcOutcome> {
+        self.gc_at(now())
+    }
+
+    /// `gc` as if the current time were `now` (Unix seconds).
+    #[doc(hidden)]
+    pub fn gc_at(&self, now: i64) -> Result<GcOutcome> {
         let lock = self.lock()?;
         self.settle(&lock)?;
-        let cutoff = now() - i64::from(self.config.snapshot.keep_days) * 24 * 60 * 60;
+        let cutoff = now - i64::from(self.config.snapshot.keep_days) * 24 * 60 * 60;
 
         let mut deletions = String::new();
         let mut outcome = GcOutcome {
@@ -45,9 +65,27 @@ impl Repo {
         };
         for workspace in self.store.workspaces()? {
             let exists = workspace.removed_at.is_none();
+            // Ten-minute period of the automatic snapshot kept last. The
+            // list is newest first, so the one kept is the last of its
+            // period.
+            let mut kept_period = None;
             for (index, snapshot) in self.snapshots(&workspace)?.iter().enumerate() {
                 let newest = index == 0;
-                if snapshot.created_at >= cutoff || (newest && exists) {
+                let automatic = matches!(snapshot.trigger, Trigger::Watch | Trigger::Auto);
+                let period = snapshot.created_at / THIN_TO_ONE_PER;
+                let keep = if newest && exists {
+                    true
+                } else if snapshot.created_at < cutoff {
+                    false
+                } else if !automatic || snapshot.created_at >= now - KEEP_ALL_FOR {
+                    true
+                } else {
+                    kept_period != Some(period)
+                };
+                if keep {
+                    if automatic {
+                        kept_period = Some(period);
+                    }
                     outcome.kept += 1;
                     continue;
                 }

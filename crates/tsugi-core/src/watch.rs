@@ -23,6 +23,8 @@ const QUIET: Duration = Duration::from_millis(1500);
 const MAX_WAIT: Duration = Duration::from_secs(10);
 /// How often new and removed workspaces are looked for.
 const REFRESH: Duration = Duration::from_secs(5);
+/// How often old snapshots are thinned out and expired.
+const GC_EVERY: Duration = Duration::from_secs(60 * 60);
 /// Above this many changed paths the watcher stops asking Git whether all
 /// of them are ignored and takes the snapshot.
 const MAX_PATHS: usize = 256;
@@ -88,8 +90,19 @@ pub fn run(repo: &Repo, stop: &AtomicBool, log: &dyn Fn(String)) -> Result<()> {
     let mut watched: Vec<Watched> = Vec::new();
     let mut pending: HashMap<String, Pending> = HashMap::new();
     let mut next_refresh = Instant::now();
+    let mut next_gc = Instant::now();
 
     while !stop.load(Ordering::Relaxed) && repo.state_dir().exists() {
+        if Instant::now() >= next_gc {
+            match repo.gc() {
+                Ok(outcome) if outcome.deleted > 0 => {
+                    log(format!("deleted {} old snapshot(s)", outcome.deleted));
+                }
+                Ok(_) => {}
+                Err(error) => log(format!("gc failed: {error}")),
+            }
+            next_gc = Instant::now() + GC_EVERY;
+        }
         if Instant::now() >= next_refresh {
             if let Err(error) = refresh(repo, &mut watcher, &mut watched, log) {
                 log(format!("refresh failed: {error}"));
