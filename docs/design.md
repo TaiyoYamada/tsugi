@@ -92,15 +92,23 @@ Tsugi-Head: 8d1e0f...
 Tsugi-Branch: refs/heads/tsugi/login-fix
 ```
 
-`Tsugi-Trigger` is one of `watch`, `manual`, `adopt`, `pre-restore`,
-`pre-sync`, `pre-publish`, `pre-remove` and `pre-undo`.
+`Tsugi-Trigger` says why the snapshot was taken.
+
+| Trigger | Taken |
+|---|---|
+| `watch` | by the watcher, after files changed |
+| `manual` | by `tsugi snapshot` |
+| `auto` | by a command that needed the current content of the workspace, such as `status`, `diff` and `conflicts` |
+| `pre-restore`, `pre-sync`, `pre-publish`, `pre-remove`, `pre-undo` | by the operation of that name, before it changes anything |
 
 The tree is built with a temporary index (`GIT_INDEX_FILE`) that starts as a
 copy of the worktree's own index. The worktree's index, and therefore whatever
 the agent has staged, is never modified.
 
 No snapshot is written when both the tree and `HEAD` are identical to the
-latest snapshot of the workspace.
+latest snapshot of the workspace. Commands that report the state of
+workspaces take a snapshot first, so what they report is the content on disk
+at that moment and not the content at the time of the last snapshot.
 
 The two refs of a new snapshot are written in one `git update-ref --stdin`
 transaction that also verifies the previous value of `latest`. Two processes
@@ -134,16 +142,27 @@ branch as a single commit.
    nothing has changed.
 3. Create the commit `C` with the merged tree and the single parent `B`.
 4. Run the commands of `publish.verify` in a temporary detached worktree
-   checked out at `C`. A command that exits non-zero stops the publish; the
-   base branch has not moved. Results are stored per tree and command, so an
-   unchanged tree is not verified twice.
+   checked out at `C`, with the paths of `workspace.copy` cloned from the
+   workspace. A command that exits non-zero stops the publish; the base
+   branch has not moved. Results are stored per tree and command, so an
+   unchanged tree is not verified twice. The repository lock is released
+   during this step: verification can take minutes, and other commands and
+   the watcher must not wait for it.
 5. Move the base branch from `B` to `C`. If the base branch is checked out in
    a worktree, this is done with `git merge --ff-only` in that worktree so
    that its files follow; otherwise with `git update-ref`, guarded by the old
    value.
 6. Sync the workspace: its files become the merged tree and its branch moves
    to `C`. The commits the agent made in the workspace are no longer on any
-   branch, but stay reachable from the snapshots.
+   branch, but stay reachable from the snapshots. If the workspace changed
+   during verification in a way that conflicts with `C`, it is left as it is
+   and the user is told; the publish itself has succeeded.
+
+What is published is the content of the workspace: every file that a
+snapshot holds, committed or not. Like Jujutsu, tsugi has no notion of
+"uncommitted" for a workspace.
+
+The published commit is signed when `commit.gpgsign` is set.
 
 `tsugi ws sync <workspace>` performs the merge with the current base branch
 without publishing (steps 1, 2 and 6 with `C` replaced by `B`).
@@ -160,10 +179,19 @@ Every mutating command
 
 1. takes the repository lock (`tsugi/lock`, an exclusive file lock),
 2. resolves operations that were left unfinished by an earlier process,
-3. inserts a row in `operations` with state `started`,
+3. inserts a row in `operations` with state `started`, and takes a lock on
+   a file of its own (`tsugi/ops/<id>.lock`),
 4. does the work, recording in the row every fact that undo or recovery needs
    as soon as it is known (for example the `pre-restore` snapshot),
 5. sets the state to `done`.
+
+An operation whose row says `started` and whose lock file is not locked
+belongs to a process that died: the operating system released the lock.
+This is how a publish that is being verified, which holds no repository
+lock, is told apart from a publish that crashed.
+
+An operation that fails with an error is resolved the same way, at once,
+by the process that ran it.
 
 Recovery of an unfinished operation depends on its kind.
 
@@ -187,6 +215,14 @@ undone.
 
 Snapshots, `gc` and `uninstall` are not operations and cannot be undone.
 
+## Removing a workspace
+
+`tsugi ws rm` takes a `pre-remove` snapshot and deletes the worktree. The
+branch tsugi created for the workspace is deleted only when every commit on
+it is on the base branch already; otherwise it is kept and the user is
+told. The snapshots of a removed workspace expire like all others, after
+`snapshot.keep_days`. The main worktree cannot be removed.
+
 ## The source of truth
 
 Git is the source of truth for everything Git can express: which worktrees
@@ -199,10 +235,13 @@ kept until they expire.
 
 ## The watcher
 
-`tsugi watch start` runs a background process per repository. It watches the
-directory of every workspace and the per-worktree Git directory (for `HEAD`
-changes caused by commits), waits for a quiet period, and takes a snapshot
-with the trigger `watch`. Events that only concern ignored files are dropped.
+`tsugi watch start` runs a background process per repository; the desktop
+app runs the same loop inside its own process. A lock on `tsugi/watch.lock`
+makes sure there is one watcher per repository. It watches the directory of
+every workspace and the reflog of `HEAD` in the per-worktree Git directory
+(for commits, checkouts and resets). A workspace is snapshotted once its
+files were quiet for 1.5 seconds, or 10 seconds after the first change if
+they never are. Changes that only concern ignored files are dropped.
 
 The watcher is an optimisation of granularity, not a requirement for safety:
 every command that overwrites files takes its own snapshot first, and
@@ -218,7 +257,8 @@ tsugi reads, and never writes, the session logs that agents keep.
 | Codex | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` | `payload.cwd` of the first line (`session_meta`). |
 
 From the tail of a log tsugi derives whether the agent is working or idle and
-the last thing it said. Support for another agent is one more implementation
+the last thing it said. The logs do not say whether an agent waits for the
+user to approve a tool call; such a session is reported as working. Support for another agent is one more implementation
 of the same function; nothing else in tsugi depends on a specific agent.
 
 ## Settings
