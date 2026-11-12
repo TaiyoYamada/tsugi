@@ -15,6 +15,7 @@ use crate::repo::{Repo, failpoint};
 use crate::workspace::WorkspaceStatus;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct DiffStat {
     pub files: u32,
     pub insertions: u32,
@@ -22,6 +23,7 @@ pub struct DiffStat {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct FileChange {
     pub path: String,
     /// `None` for binary files.
@@ -30,6 +32,7 @@ pub struct FileChange {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Diff {
     /// Commit or tree the diff starts from.
     pub from: String,
@@ -41,6 +44,7 @@ pub struct Diff {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Conflict {
     /// Name of a workspace.
     pub workspace: String,
@@ -52,6 +56,7 @@ pub struct Conflict {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct PublishOutcome {
     pub workspace: Workspace,
     pub base: String,

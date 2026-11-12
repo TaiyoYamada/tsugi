@@ -19,6 +19,7 @@ const TAIL_BYTES: u64 = 1024 * 1024;
 const MESSAGE_CHARS: usize = 300;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum SessionState {
     /// The agent is in the middle of a turn. This includes waiting for the
@@ -29,6 +30,7 @@ pub enum SessionState {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Session {
     /// `claude` or `codex`.
     pub agent: String,

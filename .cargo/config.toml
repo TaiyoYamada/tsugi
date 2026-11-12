@@ -1,0 +1,6 @@
+[env]
+# Where `pnpm bindings` (apps/desktop) writes the TypeScript types that are
+# generated from the Rust types, and how 64-bit integers are typed there.
+# Timestamps and sequence numbers stay far below 2^53.
+TS_RS_EXPORT_DIR = { value = "apps/desktop/src/bindings", relative = true }
+TS_RS_LARGE_INT = "number"

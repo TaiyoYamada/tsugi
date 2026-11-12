@@ -15,6 +15,7 @@ const IDENTITY_NAME: &str = "tsugi";
 const IDENTITY_EMAIL: &str = "tsugi@localhost";
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct SnapshotOutcome {
     pub snapshot: Snapshot,
     /// False when the workspace had not changed since its latest snapshot.
@@ -22,6 +23,7 @@ pub struct SnapshotOutcome {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct RestoreOutcome {
     pub workspace: Workspace,
     pub restored: Snapshot,

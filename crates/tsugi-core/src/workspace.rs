@@ -17,6 +17,7 @@ use crate::store::now;
 const BRANCH_PREFIX: &str = "tsugi/";
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct WorkspaceStatus {
     #[serde(flatten)]
     pub workspace: Workspace,
@@ -34,6 +35,7 @@ pub struct WorkspaceStatus {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct SyncOutcome {
     pub workspace: Workspace,
     /// Commit the workspace now sits on.

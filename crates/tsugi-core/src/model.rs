@@ -5,6 +5,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Task {
     pub id: String,
     pub title: String,
@@ -14,6 +15,7 @@ pub struct Task {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum Origin {
     /// Created by `tsugi ws new`.
@@ -23,6 +25,7 @@ pub enum Origin {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Workspace {
     pub id: String,
     pub name: String,
@@ -36,6 +39,7 @@ pub struct Workspace {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "kebab-case")]
 pub enum Trigger {
     /// Taken by the watcher after files changed.
@@ -81,6 +85,7 @@ impl Trigger {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Snapshot {
     /// Id of the commit object that holds the snapshot.
     pub id: String,
@@ -97,6 +102,7 @@ pub struct Snapshot {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[serde(rename_all = "snake_case")]
 pub enum OpState {
     Started,
@@ -128,6 +134,7 @@ impl OpState {
 /// What an operation did, with every fact undo and recovery need.
 /// Fields are filled in as the operation progresses.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum OpDetail {
     TaskNew {
@@ -160,6 +167,7 @@ pub enum OpDetail {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Removal {
     pub workspace_id: String,
     pub name: String,
@@ -173,6 +181,7 @@ pub struct Removal {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Publication {
     pub workspace_id: String,
     /// Short name of the branch that was published to.
@@ -199,6 +208,7 @@ impl OpDetail {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Operation {
     pub id: i64,
     pub state: OpState,
@@ -210,6 +220,7 @@ pub struct Operation {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct Verification {
     pub command: String,
     pub passed: bool,

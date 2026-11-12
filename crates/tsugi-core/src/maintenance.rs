@@ -15,12 +15,14 @@ use crate::store::now;
 const STALE_TEMP_FILE: Duration = Duration::from_secs(60 * 60);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct GcOutcome {
     pub deleted: u32,
     pub kept: u32,
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(export))]
 pub struct UninstallOutcome {
     pub refs_deleted: u32,
     /// Worktrees that still exist. They are ordinary Git worktrees and are
