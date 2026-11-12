@@ -1,8 +1,8 @@
 //! The terminal app of tsugi: every workspace of a repository on one screen.
 //!
 //! The screen is drawn by one thread. A second thread reloads the state of
-//! the workspaces every two seconds, and every request that changes the
-//! repository runs in a thread of its own, so the screen never waits for
+//! the workspaces every two seconds, a third runs the watcher, and every
+//! request that changes the repository runs in a thread of its own, so the screen never waits for
 //! git or for a verification command. Each thread opens the repository
 //! itself; they coordinate through the repository lock like separate
 //! processes do.
@@ -11,12 +11,14 @@ mod app;
 mod ui;
 
 use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use ratatui::DefaultTerminal;
 use ratatui::crossterm::event::{self, Event, KeyEventKind};
-use tsugi_core::{Conflict, Repo, Result, Trigger, WorkspaceStatus};
+use tsugi_core::{Conflict, Repo, Result, Trigger, WorkspaceStatus, watch};
 
 pub use app::{App, Focus, Input, Mode, Request, Tab};
 pub use ui::draw;
@@ -42,9 +44,22 @@ pub fn run(repo: Repo, home: Option<&Path>) -> Result<()> {
         std::thread::spawn(move || reload_loop(&root, home.as_deref(), &messages, &wake_up));
     }
 
+    // While the app is open, workspaces are snapshotted as files change.
+    // If a watcher runs already, this one ends at once.
+    let stop_watching = Arc::new(AtomicBool::new(false));
+    {
+        let (root, stop) = (root.clone(), stop_watching.clone());
+        std::thread::spawn(move || {
+            if let Ok(repo) = Repo::discover(&root) {
+                let _ = watch::run(&repo, &stop, &|_| {});
+            }
+        });
+    }
+
     let mut terminal = ratatui::init();
     let result = event_loop(&mut terminal, &repo, &root, &messages, &inbox, &wake);
     ratatui::restore();
+    stop_watching.store(true, Ordering::Relaxed);
     result
 }
 
@@ -152,7 +167,7 @@ fn reload_loop(
 ) {
     loop {
         let state = Repo::discover(root).and_then(|repo| {
-            let statuses = repo.status(home)?;
+            let statuses = repo.poll_status(home)?;
             let conflicts = repo.conflicts_among(&statuses)?;
             Ok((statuses, conflicts))
         });
