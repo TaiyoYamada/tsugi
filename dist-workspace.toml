@@ -11,6 +11,8 @@ ci = "github"
 installers = ["shell"]
 # Target platforms to build apps for (Rust target-triple syntax)
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu"]
+# Build only the packages that are shipped; tsugi desktop needs GTK on Linux
+precise-builds = true
 # Where to host releases
 hosting = "github"
 # Sign the macOS binaries with the Developer ID certificate in CODESIGN_CERTIFICATE
