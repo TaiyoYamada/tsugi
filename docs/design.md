@@ -108,7 +108,9 @@ the agent has staged, is never modified.
 No snapshot is written when both the tree and `HEAD` are identical to the
 latest snapshot of the workspace. Commands that report the state of
 workspaces take a snapshot first, so what they report is the content on disk
-at that moment and not the content at the time of the last snapshot.
+at that moment and not the content at the time of the last snapshot. The
+apps, which ask every two seconds, skip this while a watcher runs: the
+latest snapshots are then at most a few seconds old.
 
 The two refs of a new snapshot are written in one `git update-ref --stdin`
 transaction that also verifies the previous value of `latest`. Two processes
@@ -126,8 +128,16 @@ recorded, only the files are restored and no ref is moved.
 
 ### Expiry
 
-`tsugi gc` deletes snapshot refs. Snapshots older than `snapshot.keep_days`
-are deleted, except the latest snapshot of every workspace that still exists.
+`tsugi gc` deletes snapshot refs, and the watcher runs it once an hour.
+
+- Snapshots older than `snapshot.keep_days` are deleted.
+- Of the snapshots taken automatically (`watch`, `auto`) more than an hour
+  ago, the last one of every ten minutes is kept. An agent at work produces
+  a snapshot every few seconds; that detail matters for the last hour.
+- The latest snapshot of a workspace that still exists is always kept.
+  Snapshots taken on request or before an operation are kept until they are
+  older than `snapshot.keep_days`.
+
 Git's own garbage collection then removes the objects that are no longer
 reachable.
 
@@ -235,8 +245,9 @@ kept until they expire.
 
 ## The watcher
 
-`tsugi watch start` runs a background process per repository; the desktop
-app runs the same loop inside its own process. A lock on `tsugi/watch.lock`
+`tsugi watch start` runs a background process per repository; the terminal
+app and the desktop app run the same loop inside their own process while
+they are open. A lock on `tsugi/watch.lock`
 makes sure there is one watcher per repository. It watches the directory of
 every workspace and the reflog of `HEAD` in the per-worktree Git directory
 (for commits, checkouts and resets). A workspace is snapshotted once its

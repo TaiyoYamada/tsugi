@@ -77,7 +77,8 @@ tsugi undo                         # revert the most recent operation
 
 `tsugi` without arguments opens the terminal app: the workspaces grouped by
 task on the left, the diff, the snapshots and the agent of the selected
-workspace on the right. Press `?` for the keys.
+workspace on the right. Press `?` for the keys. While it is open it runs
+the watcher itself.
 
 Every command accepts `--json`. The output is specified in
 [docs/cli.md](docs/cli.md), and [docs/agents.md](docs/agents.md) describes
@@ -98,7 +99,9 @@ base = "main"
 [snapshot]
 # Untracked files larger than this are left out of snapshots.
 max_file_bytes = 10485760
-# `tsugi gc` deletes snapshots older than this.
+# Snapshots older than this are deleted by `tsugi gc`, which the watcher
+# runs once an hour. Automatic snapshots older than an hour are thinned to
+# one per ten minutes.
 keep_days = 14
 
 [publish]
