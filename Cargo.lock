@@ -2036,6 +2036,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "tsugi-core",
+ "tsugi-tui",
 ]
 
 [[package]]
@@ -2058,6 +2060,7 @@ version = "0.1.0"
 dependencies = [
  "crossterm",
  "ratatui",
+ "tsugi-core",
 ]
 
 [[package]]
