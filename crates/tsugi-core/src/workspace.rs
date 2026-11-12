@@ -363,15 +363,30 @@ impl Repo {
         Ok(previous)
     }
 
-    /// State of every workspace. Takes a snapshot of each workspace first
-    /// unless another process is busy with the repository.
+    /// State of every workspace as it is on disk now: takes a snapshot of
+    /// each workspace first, unless another process is busy with the
+    /// repository. `home` is where agents keep their session logs; without
+    /// it no sessions are reported.
     pub fn status(&self, home: Option<&Path>) -> Result<Vec<WorkspaceStatus>> {
+        self.status_with(home, true)
+    }
+
+    /// `status` for a caller that asks every few seconds. While a watcher
+    /// runs, the latest snapshots are at most a few seconds old and taking
+    /// more would only cost time; without a watcher this is `status`.
+    pub fn poll_status(&self, home: Option<&Path>) -> Result<Vec<WorkspaceStatus>> {
+        self.status_with(home, !crate::watch::is_running(self)?)
+    }
+
+    fn status_with(&self, home: Option<&Path>, snapshot: bool) -> Result<Vec<WorkspaceStatus>> {
         let workspaces = match self.lock_briefly()? {
             Some(lock) => {
                 self.settle(&lock)?;
                 let workspaces = self.workspaces()?;
-                for workspace in &workspaces {
-                    self.snapshot_locked(&lock, workspace, Trigger::Auto)?;
+                if snapshot {
+                    for workspace in &workspaces {
+                        self.snapshot_locked(&lock, workspace, Trigger::Auto)?;
+                    }
                 }
                 workspaces
             }

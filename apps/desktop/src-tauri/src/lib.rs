@@ -132,7 +132,7 @@ fn init_repo(path: PathBuf, watchers: State<'_, Watchers>) -> CommandResult<Path
 #[tauri::command(async)]
 fn overview(repo: PathBuf) -> CommandResult<Overview> {
     let repo = Repo::discover(&repo)?;
-    let statuses = repo.status(std::env::home_dir().as_deref())?;
+    let statuses = repo.poll_status(std::env::home_dir().as_deref())?;
     Ok(Overview {
         root: repo.root().to_path_buf(),
         default_base: repo.default_base()?,

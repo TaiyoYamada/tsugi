@@ -116,14 +116,27 @@ fn the_window_can_drive_a_repository_from_setup_to_undo() {
     let snapshots = detail["snapshots"].as_array().unwrap();
     assert_eq!(snapshots.len(), 1, "detail lists snapshots, it takes none");
 
+    // While a watcher runs, `overview` reports the latest snapshots and
+    // takes none itself.
+    let second = invoke(
+        &window,
+        "snapshot",
+        json!({ "repo": repo, "workspace": workspace }),
+    )
+    .unwrap();
     let overview = invoke(&window, "overview", json!({ "repo": repo })).unwrap();
-    let latest = overview["statuses"][1]["latest_snapshot"]["id"]
-        .as_str()
-        .unwrap();
+    assert_eq!(
+        overview["statuses"][1]["latest_snapshot"]["id"],
+        second["value"]["snapshot"]["id"]
+    );
     let between = invoke(
         &window,
         "diff",
-        json!({ "repo": repo, "from": first["value"]["snapshot"]["id"], "to": latest }),
+        json!({
+            "repo": repo,
+            "from": first["value"]["snapshot"]["id"],
+            "to": second["value"]["snapshot"]["id"],
+        }),
     )
     .unwrap();
     assert!(between["patch"].as_str().unwrap().contains("+hello again"));
