@@ -1,30 +1,14 @@
 //! Output for people. The JSON output is the stable interface; this text can
 //! change between versions.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use tsugi_core::{
     Conflict, Diff, OpState, Operation, PublishOutcome, SessionState, Snapshot, Task,
     UninstallOutcome, Workspace, WorkspaceStatus, short_branch,
 };
+use tsugi_tui::ago;
 
 pub fn short(id: &str) -> &str {
     &id[..id.len().min(8)]
-}
-
-/// `3m ago`, `2h ago`, `5d ago`.
-pub fn ago(timestamp: i64) -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs() as i64)
-        .unwrap_or(timestamp);
-    let seconds = (now - timestamp).max(0);
-    match seconds {
-        0..60 => "just now".to_string(),
-        60..3600 => format!("{}m ago", seconds / 60),
-        3600..86400 => format!("{}h ago", seconds / 3600),
-        _ => format!("{}d ago", seconds / 86400),
-    }
 }
 
 /// Lays rows out in columns that are as wide as their widest cell.
