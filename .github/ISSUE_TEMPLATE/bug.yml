@@ -1,0 +1,48 @@
+name: Bug
+description: Something tsugi did wrong, or did not do.
+labels: [bug]
+body:
+  - type: dropdown
+    id: part
+    attributes:
+      label: Where
+      options:
+        - Command line tool
+        - Terminal app
+        - tsugi desktop
+        - The library (tsugi-core)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what tsugi did, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce
+      description: Commands from a fresh repository are best.
+      placeholder: |
+        git init demo && cd demo
+        tsugi init
+        ...
+      render: shell
+  - type: textarea
+    id: operations
+    attributes:
+      label: Recent operations
+      description: >
+        The output of `tsugi op log -n 10 --json`, if a publish, restore,
+        sync or undo went wrong.
+      render: json
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: "`tsugi --version`, `git --version` and the OS."
+      placeholder: tsugi 0.1.0, git 2.47.0, macOS 26.1
+    validations:
+      required: true

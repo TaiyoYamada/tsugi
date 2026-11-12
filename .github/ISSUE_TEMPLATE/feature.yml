@@ -1,0 +1,18 @@
+name: Idea
+description: Something tsugi could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What you were trying to do, and where tsugi got in the way.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What tsugi could do
+      description: >
+        A change to how tsugi stores or guarantees something needs a change
+        to docs/design.md first; say so if yours does.
