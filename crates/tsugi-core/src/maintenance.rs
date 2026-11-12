@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::path::PathBuf;
+use std::time::Duration;
 
 use serde::Serialize;
 
@@ -9,6 +10,9 @@ use crate::error::Result;
 use crate::repo::Repo;
 use crate::snapshot::{latest_ref, snapshot_ref};
 use crate::store::now;
+
+/// Temporary files live for milliseconds; one this old belongs to no process.
+const STALE_TEMP_FILE: Duration = Duration::from_secs(60 * 60);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct GcOutcome {
@@ -60,6 +64,15 @@ impl Repo {
             let transaction = format!("start\n{deletions}prepare\ncommit\n");
             self.git
                 .run_with_stdin(&["update-ref", "--stdin"], Some(transaction.as_bytes()))?;
+        }
+
+        // A process that was killed leaves its temporary index behind.
+        for entry in fs::read_dir(self.state_dir.join("tmp"))? {
+            let entry = entry?;
+            let age = entry.metadata()?.modified()?.elapsed().unwrap_or_default();
+            if entry.file_type()?.is_file() && age > STALE_TEMP_FILE {
+                fs::remove_file(entry.path())?;
+            }
         }
         Ok(outcome)
     }
