@@ -46,7 +46,17 @@ macOS. Windows is not supported.
 
 ## Install
 
-tsugi needs Git 2.38 or newer and, to build it, Rust 1.90 or newer.
+tsugi needs Git 2.38 or newer. The command line tool, which includes the
+terminal app, installs on macOS and Linux with
+
+```
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/TaiyoYamada/tsugi/releases/latest/download/tsugi-installer.sh | sh
+```
+
+tsugi desktop is `tsugi-desktop-universal-apple-darwin.dmg` on the
+[latest release](https://github.com/TaiyoYamada/tsugi/releases/latest).
+
+To build from source you need Rust 1.90 or newer:
 
 ```
 git clone https://github.com/TaiyoYamada/tsugi
